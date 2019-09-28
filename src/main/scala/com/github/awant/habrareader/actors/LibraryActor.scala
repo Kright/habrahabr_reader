@@ -7,7 +7,8 @@ import com.github.awant.habrareader.AppConfig.LibraryActorConfig
 import com.github.awant.habrareader.actors.TgBotActor.{PostEdit, PostReply, Reply}
 import com.github.awant.habrareader.models
 import com.github.awant.habrareader.models.{Chat, ChatData, Event}
-import com.github.awant.habrareader.utils.{ChangeCommand, DateUtils, SettingsRequestParser}
+import com.github.awant.habrareader.utils.DateUtils
+import com.github.awant.habrareader.utils.SettingsRequestParser._
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -16,7 +17,7 @@ import scala.util.{Failure, Success}
 
 object LibraryActor {
   def props(config: LibraryActorConfig, chatData: models.ChatData): Props =
-    Props(new LibraryActor(config.chatsUpdateTimeSeconds.seconds, chatData))
+    Props(new LibraryActor(config.chatsUpdateTimeSeconds.seconds, config.updateTgMessages, chatData))
 
   final case class BotSubscription(subscriber: ActorRef)
 
@@ -30,7 +31,7 @@ object LibraryActor {
   private final case class UpdateChatDataLastTime(date: Date)
 }
 
-class LibraryActor(subscriptionReplyInterval: FiniteDuration, chatData: models.ChatData) extends Actor with ActorLogging {
+class LibraryActor(subscriptionReplyInterval: FiniteDuration, updateTgMessages: Boolean, chatData: models.ChatData) extends Actor with ActorLogging {
   import LibraryActor._
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
@@ -52,18 +53,25 @@ class LibraryActor(subscriptionReplyInterval: FiniteDuration, chatData: models.C
         case Failure(err) => println(err)
       }
     case SettingsChanging(chatId: Long, cmd: String) =>
-      val settingsCmd = SettingsRequestParser.parse(cmd)
-      settingsCmd.cmd match {
-        case ChangeCommand.UNKNOWN => Reply(chatId, "Unknown command")
-        case ChangeCommand.RESET => chatData.updateChat(Chat.withDefaultSettings(chatId))
-        case ChangeCommand.CLEAR => chatData.updateChat(Chat.withEmptySettings(chatId))
-        case ChangeCommand.SET => chatData.appendSettingToChat(chatId, settingsCmd.args.head, settingsCmd.args(1))
+      println(s"SettingsChanging($chatId, $cmd)")
+
+      cmd match {
+        case Command("/reset") =>
+          chatData.replaceChat(Chat.withDefaultSettings(chatId))
+        case CommandStringDouble("/author", name, weight) =>
+          chatData.updateChat(chatId)(chat => chat.copy(authorWeights = chat.authorWeights.updated(name, weight)))
+        case CommandStringDouble("/tag", name, weight) =>
+          chatData.updateChat(chatId)(chat => chat.copy(tagWeights = chat.tagWeights.updated(name, weight)))
+        case CommandDouble("/rating", ratingThreshold) =>
+          chatData.updateChat(chatId)(_.copy(ratingThreshold = ratingThreshold))
+        case _ =>
+          subscribedBot ! Reply(chatId, s"unknown command: '$cmd'")
       }
 
     case SettingsGetting(chatId) =>
       chatData.getChatSettings(chatId).onComplete {
         case Success(settings) => subscribedBot ! Reply(chatId, settings)
-        case Failure(_) => subscribedBot ! Reply(chatId, "")
+        case Failure(err) => subscribedBot ! Reply(chatId, s"error: $err")
       }
     case NewPostsSending =>
       processNewPostSending()
@@ -88,7 +96,9 @@ class LibraryActor(subscriptionReplyInterval: FiniteDuration, chatData: models.C
           case ChatData.Update(chat, post, None) =>
             subscribedBot ! PostReply(chat.id, post)
           case ChatData.Update(chat, post, Some(prevMessageId)) =>
-            subscribedBot ! PostEdit(chat.id, prevMessageId, post)
+            if (updateTgMessages) {
+              subscribedBot ! PostEdit(chat.id, prevMessageId, post)
+            }
         }
       case Failure(e) => log.error(s"$e")
     }

@@ -46,7 +46,7 @@ class TgBotActor private(botConfig: TgBotActorConfig, library: ActorRef) extends
     s"""author: ${post.author}
          |up votes: ${post.upVotes}
          |down votes: ${post.downVotes}
-         |*${post.viewsCount} views, ${post.bookmarksCount} bookmarks, ${post.commentsCount} comments
+         |${post.viewsCount} views, ${post.bookmarksCount} bookmarks, ${post.commentsCount} comments
          |${post.link}
       """.stripMargin
   }
@@ -82,15 +82,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
     Future { observer ! Settings(msg.chat.id) }
   }
 
-  onCommand('reset) { msg =>
-    Future { observer ! SettingsUpd(msg.chat.id, msg.text.get) }
-  }
-
-  onCommand('clear) { msg =>
-    Future { observer ! SettingsUpd(msg.chat.id, msg.text.get) }
-  }
-
-  onCommand(_.cmd.startsWith("set")) { msg =>
+  onCommand('reset | 'author | 'tag | 'rating) { msg =>
     Future { observer ! SettingsUpd(msg.chat.id, msg.text.get) }
   }
 
@@ -100,13 +92,13 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
          |/start | /help - list commands
          |/subscribe - subscribe to receive new articles
          |/unsubscribe - unsubscribe
-         |/settings - get all settings
-         |/reset - set all settings to default values (subscription to all authors, categories)
-         |/clear - drop all settings to null, unsubscribe
-         |/setExcludedAuthor - don't receive articles from the author
-         |/setExcludedCategory - don't receive articles from the category
-         |/setAuthor - receive articles from the author
-         |/setCategory - receive articles from the category
+         |/settings - print all settings
+         |/reset - reset all weights to default
+         |/author name weight
+         |/tag name weight
+         |/rating thresholdValue
+         |
+         |example: '/tag scala +10'
       """.stripMargin, Option(ParseMode.Markdown)).void
   }
 }

@@ -5,7 +5,6 @@ import java.util.Date
 import com.github.awant.habrareader.utils.DateUtils
 import org.mongodb.scala._
 import org.mongodb.scala.model.{ReplaceOptions, UpdateOptions}
-import org.mongodb.scala.result.UpdateResult
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -25,19 +24,21 @@ class ChatData(chatCollection: MongoCollection[Chat],
 
   private val log = LoggerFactory.getLogger(classOf[ChatData])
 
-  def updateSubscription(id: Long, subscription: Boolean): Future[UpdateResult] = {
-    val options = new ReplaceOptions().upsert(true)
-    val chat = Chat.withDefaultSettings(id, subscription)
-    chatCollection.replaceOne(Document("id" -> id), chat, options).toFuture
-  }
+  def updateSubscription(id: Long, subscription: Boolean) =
+    updateChat(id)(_.copy(subscription = subscription))
 
-  def updateChat(chat: Chat): Future[Chat] = {
+  def replaceChat(chat: Chat): Future[Chat] =
     chatCollection.findOneAndReplace(Document("id" -> chat.id), chat).toFuture
-  }
 
-  def getChat(id: Long): Future[Chat] = {
-    chatCollection.find(Document("id" -> id)).first.head
-  }
+  def updateChat(chatId: Long)(mapFunc: Chat => Chat): Future[result.UpdateResult] =
+    chatCollection
+      .find(Document("id" -> chatId)).first.headOption()
+      .map(_.getOrElse(Chat.withDefaultSettings(chatId)))
+      .map(mapFunc)
+      .map(_.copy(lastUpdateDate = DateUtils.currentDate))
+      .flatMap{ chat =>
+        chatCollection.replaceOne(Document("id" -> chatId), chat, ReplaceOptions().upsert(true)).toFuture()
+      }
 
   def appendSettingToChat(id: Long, field: String, value: String): Unit = {
     val options = new UpdateOptions().upsert(true)
@@ -47,16 +48,23 @@ class ChatData(chatCollection: MongoCollection[Chat],
   }
 
   def getChatSettings(id: Long): Future[String] =
-    chatCollection.find(Document("id" -> id)).first.head.map(_.getSettingsPrettify)
+    chatCollection.find(Document("id" -> id)).first.headOption
+      .map(_.getOrElse(Chat.withDefaultSettings(id)))
+      .map(_.getSettingsPrettify)
 
   private def predicate(chat: Chat, post: Post): Boolean = {
-    // filter by author
-    if ((chat.authorsScope == ChatScope.all) && chat.excludedAuthors.contains(post.author)) false
-    else if ((chat.authorsScope == ChatScope.none) && !chat.authors.contains(post.author)) false
-    // filter by categories
-    else if ((chat.categoryScope == ChatScope.all) && post.categories.exists(chat.excludedCategories.contains)) false
-    else if ((chat.categoryScope == ChatScope.none) && post.categories.forall(!chat.categories.contains(_))) false
-    else true
+    def getMeanOrZero(numbers: Seq[Double]): Double =
+      if (numbers.isEmpty)
+        0
+      else
+        numbers.sum / numbers.size
+
+    val weight =
+      (post.upVotes - post.downVotes) +
+      chat.authorWeights.getOrElse(post.author, 0.0) +
+      getMeanOrZero(post.categories.map(chat.tagWeights.getOrElse(_, 0.0)))
+
+    weight >= chat.ratingThreshold
   }
 
   private def getUpdates(chats: Seq[Chat], posts: Seq[Post], events: Seq[Event]): Seq[ChatData.Update] = {

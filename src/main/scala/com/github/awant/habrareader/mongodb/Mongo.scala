@@ -2,7 +2,7 @@ package com.github.awant.habrareader.mongodb
 
 import ch.qos.logback.classic.{Level, LoggerContext}
 import com.github.awant.habrareader.AppConfig.MongoConfig
-import com.github.awant.habrareader.models.{Chat, ChatScope, Event, Post}
+import com.github.awant.habrareader.models.{Chat, Event, Post}
 import org.bson.codecs.configuration.CodecRegistries._
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala._
@@ -16,7 +16,7 @@ class Mongo(config: MongoConfig) {
   }
 
   val mongoClient: MongoClient = MongoClient(config.uri)
-  val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[Chat], classOf[Post], classOf[ChatScope], classOf[Event]), DEFAULT_CODEC_REGISTRY)
+  val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[Chat], classOf[Post], classOf[Event]), DEFAULT_CODEC_REGISTRY)
   val database: MongoDatabase = mongoClient.getDatabase(config.database).withCodecRegistry(codecRegistry)
 
   val chatCollection: MongoCollection[Chat] = database.getCollection[Chat]("chats")

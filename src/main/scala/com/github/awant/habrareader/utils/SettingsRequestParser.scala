@@ -1,41 +1,40 @@
 package com.github.awant.habrareader.utils
 
-import com.github.awant.habrareader.utils.ChangeCommand.ChangeCommand
-
-object ChangeCommand extends Enumeration {
-  type ChangeCommand = Value
-  val RESET, CLEAR, SET, UNKNOWN = Value
-}
-
-case class SettingsRequestCmd(cmd: ChangeCommand, args: Seq[String] = Seq.empty)
-
+import scala.util.Try
 
 object SettingsRequestParser {
-  val availableSetCmds: Seq[String] = Seq(
-    "setExcludedAuthor",
-    "setExcludedCategory",
-    "setAuthor",
-    "setCategory"
-  )
-  val unknownSettingsRequestCmd = SettingsRequestCmd(ChangeCommand.UNKNOWN)
 
-  private def parseSetCmd(rawArgs: Seq[String]): SettingsRequestCmd = {
-    if (rawArgs.length != 2) unknownSettingsRequestCmd
-    else {
-      val cmd = rawArgs.head
-      if (!availableSetCmds.contains(cmd)) unknownSettingsRequestCmd
-      else {
-        val cmdExt = StringUtils.decapitalize(cmd.substring(ChangeCommand.SET.toString.length))
-        SettingsRequestCmd(ChangeCommand.SET, Seq(cmdExt, rawArgs.tail.head))
+  private def tokenize(s: String): Array[String] = s.split(" ").filter(_.nonEmpty)
+
+  private def asTokens(s: String, count: Int): Option[Array[String]] = {
+    val arr = tokenize(s)
+    if (arr.size == count)
+      Some(arr)
+    else
+      None
+  }
+
+  object Command {
+    def unapply(text: String): Option[String] =
+      asTokens(text, 1).map(_.head)
+  }
+
+  object CommandStringDouble {
+    def unapply(text: String): Option[(String, String, Double)] =
+      asTokens(text, 3).flatMap { tokens =>
+        Try {
+          (tokens(0), tokens(1), tokens(2).toDouble)
+        }.toOption
       }
-    }
   }
 
-  def parse(rawCmd: String): SettingsRequestCmd = rawCmd match {
-    case "reset" => SettingsRequestCmd(ChangeCommand.RESET)
-    case "clear" => SettingsRequestCmd(ChangeCommand.CLEAR)
-    case _ =>
-      if (rawCmd.startsWith("set")) parseSetCmd(rawCmd.split("\\s+"))
-      else unknownSettingsRequestCmd
+  object CommandDouble {
+    def unapply(text: String): Option[(String, Double)] =
+      asTokens(text, 2).flatMap { tokens =>
+        Try {
+          (tokens(0), tokens(1).toDouble)
+        }.toOption
+      }
   }
+
 }
