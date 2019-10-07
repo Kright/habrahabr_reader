@@ -2,13 +2,10 @@ package com.github.awant.habrareader.models
 
 import java.util.Date
 
-import com.github.awant.habrareader.utils.DateUtils
-import org.mongodb.scala._
-import org.mongodb.scala.model.{ReplaceOptions, UpdateOptions}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object ChatData {
 
@@ -16,41 +13,24 @@ object ChatData {
     def date: Date = post.updateDate
   }
 
+  def apply(): ChatData = {
+    new ChatData(new mutable.HashMap(), new mutable.HashMap(), new ArrayBuffer())
+  }
 }
 
-class ChatData(chatCollection: MongoCollection[Chat],
-               postCollection: MongoCollection[Post],
-               eventCollection: MongoCollection[Event])(implicit ec: ExecutionContext) {
+class ChatData(chatCollection: mutable.HashMap[Long, Chat],
+               postCollection: mutable.HashMap[Long, Post],
+               eventCollection: mutable.ArrayBuffer[Event]) {
+
+
+  // todo rm events, add them into Chat info
 
   private val log = LoggerFactory.getLogger(classOf[ChatData])
 
-  def updateSubscription(id: Long, subscription: Boolean) =
-    updateChat(id)(_.copy(subscription = subscription))
+  def getChat(id: Long): Chat = chatCollection.getOrElse(id, Chat.withDefaultSettings(id))
 
-  def replaceChat(chat: Chat): Future[Chat] =
-    chatCollection.findOneAndReplace(Document("id" -> chat.id), chat).toFuture
-
-  def updateChat(chatId: Long)(mapFunc: Chat => Chat): Future[result.UpdateResult] =
-    chatCollection
-      .find(Document("id" -> chatId)).first.headOption()
-      .map(_.getOrElse(Chat.withDefaultSettings(chatId)))
-      .map(mapFunc)
-      .map(_.copy(lastUpdateDate = DateUtils.currentDate))
-      .flatMap{ chat =>
-        chatCollection.replaceOne(Document("id" -> chatId), chat, ReplaceOptions().upsert(true)).toFuture()
-      }
-
-  def appendSettingToChat(id: Long, field: String, value: String): Unit = {
-    val options = new UpdateOptions().upsert(true)
-    chatCollection.updateOne(Document("id" -> id),
-      Document("$push" -> Document(field -> value)),
-      options).toFuture
-  }
-
-  def getChatSettings(id: Long): Future[String] =
-    chatCollection.find(Document("id" -> id)).first.headOption
-      .map(_.getOrElse(Chat.withDefaultSettings(id)))
-      .map(_.getSettingsPrettify)
+  def updateChat(chatId: Long)(mapFunc: Chat => Chat): Unit =
+    chatCollection(chatId) = mapFunc(chatCollection.getOrElse(chatId, Chat.withDefaultSettings(chatId)))
 
   private def predicate(chat: Chat, post: Post): Boolean = {
     def getMeanOrZero(numbers: Seq[Double]): Double =
@@ -61,12 +41,13 @@ class ChatData(chatCollection: MongoCollection[Chat],
 
     val weight =
       (post.upVotes - post.downVotes) +
-      chat.authorWeights.getOrElse(post.author, 0.0) +
-      getMeanOrZero(post.categories.map(chat.tagWeights.getOrElse(_, 0.0)))
+        chat.authorWeights.getOrElse(post.author, 0.0) +
+        getMeanOrZero(post.categories.map(chat.tagWeights.getOrElse(_, 0.0)))
 
     weight >= chat.ratingThreshold
   }
 
+  // todo rewrite logic
   private def getUpdates(chats: Seq[Chat], posts: Seq[Post], events: Seq[Event]): Seq[ChatData.Update] = {
     def getLastPost(left: Post, right: Post): Post =
       if (left.updateDate.after(right.updateDate)) left else right
@@ -89,27 +70,17 @@ class ChatData(chatCollection: MongoCollection[Chat],
     } yield ChatData.Update(chat, post, relatedEvents.map(_.reduce(getLastEvent).messageId))
   }
 
-  def getUpdates(fromDate: Date): Future[Seq[ChatData.Update]] = {
-    val threeDaysBack = DateUtils.addDays(fromDate, -3)
-
-    for {
-      chats <- chatCollection.find(Document("subscription" -> true)).toFuture()
-      posts <- postCollection.find(Document("updateDate" -> Document("$gt" -> fromDate))).toFuture()
-      events <- eventCollection.find(Document("updateDate" -> Document("$gt" -> threeDaysBack))).toFuture()
-    } yield getUpdates(chats, posts, events)
+  def getUpdates(fromDate: Date): Seq[ChatData.Update] = {
+    getUpdates(chatCollection.values.filter(_.subscription).toSeq,
+      postCollection.values.filter(_.updateDate.after(fromDate)).toSeq, eventCollection)
   }
 
   def updatePosts(posts: Seq[Post]): Unit =
     posts.foreach(updatePost)
 
   def updatePost(post: Post): Unit =
-    postCollection
-      .replaceOne(Document("link" -> post.link), post, ReplaceOptions().upsert(true))
-      .toFuture().onComplete {
-      case Success(value) => log.debug(s"update post ${post.link}: $value")
-      case Failure(exception) => log.error(s"can't update post ${post.link}: $exception")
-    }
+    postCollection(post.id) = post
 
-  def addEvent(event: Event): Future[Completed] =
-    eventCollection.insertOne(event).toFuture()
+  def addEvent(event: Event): Unit =
+    eventCollection += event
 }
