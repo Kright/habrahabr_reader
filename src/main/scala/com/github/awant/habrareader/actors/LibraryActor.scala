@@ -44,6 +44,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   var subscribedBot: ActorRef = _
   var chatDataLastTime: Date = DateUtils.currentDate
 
+  // todo add saving state
+
   override def preStart(): Unit = {
     context.system.scheduler.schedule(subscriptionReplyInterval, subscriptionReplyInterval, self, NewPostsSending)
   }

@@ -12,11 +12,7 @@ case class Post(id: Long,
                 description: String,
                 author: String,
                 categories: Seq[String],
-                upVotes: Int,
-                downVotes: Int,
-                viewsCount: Int,
-                commentsCount: Int,
-                bookmarksCount: Int,
+                metrics: Option[PostMetrics],
                 updateDate: Date)
 
 object Post {
@@ -28,12 +24,8 @@ object Post {
       "description" := post.description,
       "author" := post.author,
       "categories" := post.categories,
-      "upvotes" := post.upVotes,
-      "downvotes" := post.downVotes,
-      "views" := post.viewsCount,
-      "comments" := post.commentsCount,
-      "bookmarks" := post.bookmarksCount,
-      "updateDate" := post.updateDate
+      "metrics" := post.metrics,
+      "updateDate" := post.updateDate,
     )
   }
 
@@ -45,16 +37,8 @@ object Post {
       description <- c.get[String]("description")
       author <- c.get[String]("author")
       categories <- c.get[Seq[String]]("categories")
-      upVotes <- c.get[Int]("upvotes")
-      downVotes <- c.get[Int]("downvotes")
-      viewsCount <- c.get[Int]("views")
-      commentsCount <- c.get[Int]("comments")
-      bookmarksCount <- c.get[Int]("bookmarks")
+      metrics <- c.get[Option[PostMetrics]]("metrics")
       updateDate <- c.get[Date]("updateDate")
-    } yield Post(
-      id, link, title, description, author, categories,
-      upVotes, downVotes, viewsCount, commentsCount, bookmarksCount,
-      updateDate
-    )
+    } yield Post(id, link, title, description, author, categories, metrics, updateDate)
   }
 }
