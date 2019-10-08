@@ -7,7 +7,7 @@ import com.github.awant.habrareader.AppConfig.LibraryActorConfig
 import com.github.awant.habrareader.actors.TgBotActor.{PostEdit, PostReply, Reply}
 import com.github.awant.habrareader.models
 import com.github.awant.habrareader.models.{Chat, ChatData, Event}
-import com.github.awant.habrareader.utils.DateUtils
+import com.github.awant.habrareader.utils.{DateUtils, SavesDir}
 import com.github.awant.habrareader.utils.SettingsRequestParser._
 
 import scala.concurrent.ExecutionContextExecutor
@@ -31,7 +31,12 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   import LibraryActor._
 
   val subscriptionReplyInterval: FiniteDuration = config.chatsUpdateTimeSeconds.seconds
-  val chatData = ChatData()
+  val savesDir = new SavesDir(config.savesDir)
+
+  // todo print logs if can't load
+  // todo handling errors
+  val chatData = savesDir.loadLast().map(ChatData.load).getOrElse(ChatData.empty())
+
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 

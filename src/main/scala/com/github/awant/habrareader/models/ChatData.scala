@@ -1,5 +1,6 @@
 package com.github.awant.habrareader.models
 
+import java.io.File
 import java.util.Date
 
 import org.slf4j.LoggerFactory
@@ -13,8 +14,12 @@ object ChatData {
     def date: Date = post.updateDate
   }
 
-  def apply(): ChatData = {
+  def empty(): ChatData =
     new ChatData(new mutable.HashMap(), new mutable.HashMap(), new ArrayBuffer())
+
+  def load(file: File): ChatData = {
+    // todo
+    ???
   }
 }
 

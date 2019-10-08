@@ -13,7 +13,7 @@ object AppConfig {
   final case class ProxyConfig(ip: String, port: Int)
   final case class TgBotActorConfig(token: String, proxy: ProxyConfig)
   final case class ShopActorConfig(articlesUpdateTimeSeconds: Int)
-  final case class LibraryActorConfig(chatsUpdateTimeSeconds: Int, updateTgMessages: Boolean)
+  final case class LibraryActorConfig(chatsUpdateTimeSeconds: Int, savesDir: String)
 
   def apply(): AppConfig = config
 
