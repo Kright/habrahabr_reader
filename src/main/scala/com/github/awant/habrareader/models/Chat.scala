@@ -13,7 +13,8 @@ case class Chat(id: Long,
                 subscription: Boolean,
                 authorWeights: Map[String, Double] = Map.empty,
                 tagWeights: Map[String, Double] = Map.empty,
-                ratingThreshold: Double = 0.0) {
+                ratingThreshold: Double = 0.0, // todo move to settings
+                sentArticles: Map[Long, SentArticle] = Map.empty) {
 
   private def prettyMap(map: Map[String, Double]): String =
     if (map.nonEmpty)
@@ -40,7 +41,8 @@ object Chat {
       "subscription" := chat.subscription,
       "authorWeights" := chat.authorWeights,
       "tagWeights" := chat.tagWeights,
-      "ratingThreshold" := chat.ratingThreshold
+      "ratingThreshold" := chat.ratingThreshold,
+      "sentPosts" := chat.sentArticles,
     )
 
   implicit val decoder: Decoder[Chat] = (c: HCursor) => {
@@ -51,6 +53,7 @@ object Chat {
       authorWeights <- c.get[Map[String, Double]]("authorWeights")
       tagWeights <- c.get[Map[String, Double]]("tagWeights")
       ratingThreshold <- c.get[Double]("ratingThreshold")
-    } yield Chat(id, lastUpdateDate, subscription, authorWeights, tagWeights, ratingThreshold)
+      sentPosts <- c.get[Map[Long, SentArticle]]("sentPosts")
+    } yield Chat(id, lastUpdateDate, subscription, authorWeights, tagWeights, ratingThreshold, sentPosts)
   }
 }

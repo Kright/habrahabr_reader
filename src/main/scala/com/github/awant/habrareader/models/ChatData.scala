@@ -6,16 +6,15 @@ import java.util.Date
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 object ChatData {
 
-  case class Update(chat: Chat, post: Post, prevMessageId: Option[Int] = None) {
-    def date: Date = post.updateDate
+  case class Update(chat: Chat, article: HabrArticle, prevMessageId: Option[Int] = None) {
+    def date: Date = article.lastUpdateTime
   }
 
   def empty(): ChatData =
-    new ChatData(new mutable.HashMap(), new mutable.HashMap(), new ArrayBuffer())
+    new ChatData(new mutable.HashMap(), new mutable.HashMap())
 
   def load(file: File): ChatData = {
     // todo
@@ -24,11 +23,7 @@ object ChatData {
 }
 
 class ChatData(chatCollection: mutable.HashMap[Long, Chat],
-               postCollection: mutable.HashMap[Long, Post],
-               eventCollection: mutable.ArrayBuffer[Event]) {
-
-
-  // todo rm events, add them into Chat info
+               postCollection: mutable.HashMap[Long, HabrArticle]) {
 
   private val log = LoggerFactory.getLogger(classOf[ChatData])
 
@@ -37,7 +32,7 @@ class ChatData(chatCollection: mutable.HashMap[Long, Chat],
   def updateChat(chatId: Long)(mapFunc: Chat => Chat): Unit =
     chatCollection(chatId) = mapFunc(chatCollection.getOrElse(chatId, Chat.withDefaultSettings(chatId)))
 
-  private def predicate(chat: Chat, post: Post): Boolean = {
+  private def predicate(chat: Chat, article: HabrArticle): Boolean = {
     def getMeanOrZero(numbers: Seq[Double]): Double =
       if (numbers.isEmpty)
         0
@@ -45,47 +40,44 @@ class ChatData(chatCollection: mutable.HashMap[Long, Chat],
         numbers.sum / numbers.size
 
     val weight =
-      (post.upVotes - post.downVotes) +
-        chat.authorWeights.getOrElse(post.author, 0.0) +
-        getMeanOrZero(post.categories.map(chat.tagWeights.getOrElse(_, 0.0)))
+      article.metrics.map(m => m.upVotes - m.downVotes).getOrElse(0) +
+        chat.authorWeights.getOrElse(article.author, 0.0) +
+        getMeanOrZero(article.categories.toSeq.map(chat.tagWeights.getOrElse(_, 0.0)))
 
     weight >= chat.ratingThreshold
   }
 
-  // todo rewrite logic
-  private def getUpdates(chats: Seq[Chat], posts: Seq[Post], events: Seq[Event]): Seq[ChatData.Update] = {
-    def getLastPost(left: Post, right: Post): Post =
-      if (left.updateDate.after(right.updateDate)) left else right
+  private def getSentArticlesUpdates(): Iterable[ChatData.Update] =
+    chatCollection.values
+      .filter(_.subscription)
+      .flatMap { chat =>
+        chat.sentArticles.values.flatMap { sentArticle =>
+          postCollection.get(sentArticle.articleId)
+            .filter(_.lastUpdateTime.after(sentArticle.sentDate))
+            .map(pc => ChatData.Update(chat, pc, Some(sentArticle.messageId)))
+        }
+      }
 
-    def getLastEvent(left: Event, right: Event): Event =
-      if (left.updateDate.after(right.updateDate)) left else right
+  private def getNewArticlesUpdates(): Iterable[ChatData.Update]  = {
+    chatCollection.values
+      .filter(_.subscription)
+      .flatMap { chat =>
+        postCollection.values
+          .filter(article => !chat.sentArticles.contains(article.id) && predicate(chat, article))
+          .map(article => ChatData.Update(chat, article, None))
+      }
+  }
 
-    val eventsByChat: Map[Long, Seq[Event]] = events.groupBy(_.chatId)
+  def getUpdates(fromDate: Date): Iterable[ChatData.Update]  =
+    getSentArticlesUpdates() ++ getNewArticlesUpdates()
 
-    val lastPosts: Iterable[Post] = posts.groupBy(_.id).map { case (_, posts) =>
-      posts.reduce(getLastPost)
+  def updatePosts(posts: Seq[HabrArticle]): Unit =
+    posts.foreach{ post =>
+      postCollection(post.id) = post
     }
 
-    for {
-      chat <- chats
-      eventsByPostId = eventsByChat.getOrElse(chat.id, List()).groupBy(_.postId)
-      post <- lastPosts
-      relatedEvents = eventsByPostId.get(post.id)
-      if relatedEvents.nonEmpty || predicate(chat, post)
-    } yield ChatData.Update(chat, post, relatedEvents.map(_.reduce(getLastEvent).messageId))
-  }
-
-  def getUpdates(fromDate: Date): Seq[ChatData.Update] = {
-    getUpdates(chatCollection.values.filter(_.subscription).toSeq,
-      postCollection.values.filter(_.updateDate.after(fromDate)).toSeq, eventCollection)
-  }
-
-  def updatePosts(posts: Seq[Post]): Unit =
-    posts.foreach(updatePost)
-
-  def updatePost(post: Post): Unit =
-    postCollection(post.id) = post
-
-  def addEvent(event: Event): Unit =
-    eventCollection += event
+  def addSentArticle(chatId: Long, sentArticle: SentArticle): Unit =
+    updateChat(chatId) { chat =>
+      chat.copy(sentArticles = chat.sentArticles.updated(sentArticle.articleId, sentArticle))
+    }
 }

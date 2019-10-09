@@ -3,14 +3,14 @@ package com.github.awant.habrareader.models
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
-case class PostMetrics(upVotes: Int,
-                       downVotes: Int,
-                       viewsCount: Int,
-                       commentsCount: Int,
-                       bookmarksCount: Int)
+case class ArticleMetrics(upVotes: Int,
+                          downVotes: Int,
+                          viewsCount: Int,
+                          commentsCount: Int,
+                          bookmarksCount: Int)
 
-object PostMetrics {
-  implicit val encoder: Encoder[Post] = (metrics: PostMetrics) => {
+object ArticleMetrics {
+  implicit val encoder: Encoder[ArticleMetrics] = (metrics: ArticleMetrics) => {
     Json.obj(
       "upvotes" := metrics.upVotes,
       "downvotes" := metrics.downVotes,
@@ -20,13 +20,13 @@ object PostMetrics {
     )
   }
 
-  implicit val decoder: Decoder[PostMetrics] = (c: HCursor) => {
+  implicit val decoder: Decoder[ArticleMetrics] = (c: HCursor) => {
     for {
       upVotes <- c.get[Int]("upvotes")
       downVotes <- c.get[Int]("downvotes")
       viewsCount <- c.get[Int]("views")
       commentsCount <- c.get[Int]("comments")
       bookmarksCount <- c.get[Int]("bookmarks")
-    } yield PostMetrics(upVotes, downVotes, viewsCount, commentsCount, bookmarksCount)
+    } yield ArticleMetrics(upVotes, downVotes, viewsCount, commentsCount, bookmarksCount)
   }
 }

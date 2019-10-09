@@ -8,7 +8,7 @@ import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
-import com.github.awant.habrareader.models.{Event, Post}
+import com.github.awant.habrareader.models.{HabrArticle, SentArticle}
 import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
 import cats.instances.future._
 import cats.syntax.functor._
@@ -26,8 +26,8 @@ object TgBotActor {
   final case class Settings(chatId: Long)
   final case class SettingsUpd(chatId: Long, text: String)
   final case class Reply(chatId: Long, msg: String)
-  final case class PostReply(chatId: Long, post: Post)
-  final case class PostEdit(chatId: Long, messageId: Int, post: Post)
+  final case class PostReply(chatId: Long, post: HabrArticle)
+  final case class PostEdit(chatId: Long, messageId: Int, post: HabrArticle)
 }
 
 class TgBotActor private(botConfig: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
@@ -42,14 +42,15 @@ class TgBotActor private(botConfig: TgBotActorConfig, library: ActorRef) extends
     bot.run()
   }
 
-  private def formMessage(post: Post): String = {
-    s"""author: ${post.author}
-         |up votes: ${post.upVotes}
-         |down votes: ${post.downVotes}
-         |${post.viewsCount} views, ${post.bookmarksCount} bookmarks, ${post.commentsCount} comments
-         |${post.link}
+  private def formMessage(article: HabrArticle): String =
+    article.metrics.map { m =>
+      s"""author: ${article.author}
+         |up votes: ${m.upVotes}
+         |down votes: ${m.downVotes}
+         |${m.viewsCount} views, ${m.bookmarksCount} bookmarks, ${m.commentsCount} comments
+         |${article.link}
       """.stripMargin
-  }
+    }.getOrElse(s"author: ${article.author}")
 
   override def receive: Receive = {
     case Subscription(chatId, set) => library ! LibraryActor.SubscriptionChanging(chatId, set)
@@ -58,7 +59,7 @@ class TgBotActor private(botConfig: TgBotActorConfig, library: ActorRef) extends
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg))
     case PostReply(chatId, post) =>
       bot.request(SendMessage(chatId, formMessage(post)))
-        .map(msg => PostWasSentToTg(Event( chatId, msg.messageId, post.id, post.updateDate)))
+        .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, post.id, post.lastUpdateTime)))
         .pipeTo(sender)
     case PostEdit(chatId, messageId, post) =>
       bot.request(EditMessageText(Option(chatId), Option(messageId), text=formMessage(post)))

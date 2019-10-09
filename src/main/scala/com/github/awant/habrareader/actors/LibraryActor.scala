@@ -5,8 +5,8 @@ import java.util.Date
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.awant.habrareader.AppConfig.LibraryActorConfig
 import com.github.awant.habrareader.actors.TgBotActor.{PostEdit, PostReply, Reply}
-import com.github.awant.habrareader.models
-import com.github.awant.habrareader.models.{Chat, ChatData, Event}
+import com.github.awant.habrareader.models.SentArticle
+import com.github.awant.habrareader.models.{Chat, ChatData, HabrArticle}
 import com.github.awant.habrareader.utils.{DateUtils, SavesDir}
 import com.github.awant.habrareader.utils.SettingsRequestParser._
 
@@ -18,12 +18,13 @@ object LibraryActor {
   def props(config: LibraryActorConfig): Props = Props(new LibraryActor(config))
 
   final case class BotSubscription(subscriber: ActorRef)
-  final case class PostWasSentToTg(event: Event)
+  final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
+
   final case class SubscriptionChanging(chatId: Long, subscribe: Boolean)
   final case class SettingsGetting(chatId: Long)
   final case class SettingsChanging(chatId: Long, body: String)
   final case class NewPostsSending()
-  final case class PostsUpdating(posts: Seq[models.Post])
+  final case class PostsUpdating(posts: Seq[HabrArticle])
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
@@ -36,7 +37,6 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   // todo print logs if can't load
   // todo handling errors
   val chatData = savesDir.loadLast().map(ChatData.load).getOrElse(ChatData.empty())
-
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
@@ -86,8 +86,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       processNewPostSending()
     case PostsUpdating(posts) =>
       chatData.updatePosts(posts)
-    case PostWasSentToTg(event) =>
-      chatData.addEvent(event)
+    case PostWasSentToTg(chatId, sentArticle) =>
+      chatData.addSentArticle(chatId, sentArticle)
   }
 
   private def processNewPostSending(): Unit = {
