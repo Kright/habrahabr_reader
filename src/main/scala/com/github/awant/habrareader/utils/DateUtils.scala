@@ -10,10 +10,12 @@ import scala.concurrent.duration.FiniteDuration
 
 
 object DateUtils {
+  //todo may be rm this, store date as simple Long number in milliseconds
+
   def currentDate: Date = Calendar.getInstance().getTime
-  def convertToStr(date: Date, fmt: String = "yyyy-MM-dd HH:mm:ssZ"): String = new SimpleDateFormat(fmt).format(date)
-  def currentDateStr(fmt: String = "yyyy-MM-dd HH:mm:ssZ"): String = convertToStr(currentDate, fmt)
-  def convertToDate(date: String, fmt: String = "yyyy-MM-dd HH:mm:ssZ"): Date = new SimpleDateFormat(fmt).parse(date)
+  def convertToStr(date: Date, fmt: String = "yyyy-MM-dd HH:mm:ss.SSS Z"): String = new SimpleDateFormat(fmt).format(date)
+  def currentDateStr(fmt: String = "yyyy-MM-dd HH:mm:ss.SSS Z"): String = convertToStr(currentDate, fmt)
+  def convertToDate(date: String, fmt: String = "yyyy-MM-dd HH:mm:ss.SSS Z"): Date = new SimpleDateFormat(fmt).parse(date)
 
   def add(date: Date, delta: FiniteDuration): Date = {
     val cal = Calendar.getInstance()

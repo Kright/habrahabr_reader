@@ -16,6 +16,7 @@ object ShopActor {
   final case class UpdatePosts()
 }
 
+// todo rename to AtriclesUpdater
 class ShopActor private(updatePostsInterval: FiniteDuration, library: ActorRef) extends Actor with ActorLogging {
 
   import ShopActor._

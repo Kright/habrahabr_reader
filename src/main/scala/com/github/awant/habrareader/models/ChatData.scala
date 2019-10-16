@@ -3,6 +3,10 @@ package com.github.awant.habrareader.models
 import java.io.File
 import java.util.Date
 
+import cats.Eq
+import com.github.awant.habrareader.Implicits._
+import io.circe.syntax._
+import io.circe.{Encoder, Json, _}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -16,21 +20,45 @@ object ChatData {
   def empty(): ChatData =
     new ChatData(new mutable.HashMap(), new mutable.HashMap())
 
-  def load(file: File): ChatData = {
-    // todo
-    ???
+  def decode(s: String): ChatData =
+    io.circe.parser.decode[ChatData](s).right.get
+
+  def encode(c: ChatData): String =
+    c.asJson.toString()
+
+  def load(file: File): ChatData =
+    decode(file.text)
+
+  def save(c: ChatData, file: File): Unit =
+    file.text = encode(c)
+
+  implicit val chatDataEncoder: Encoder[ChatData] = (chatData: ChatData) =>
+    Json.obj(
+      "chats" := chatData.chats,
+      "articles" := chatData.articles,
+    )
+
+  implicit val chatDataDecoder: Decoder[ChatData] = (c: HCursor) =>
+    for {
+      chats <- c.get[mutable.HashMap[Long, Chat]]("chats")
+      articles <- c.get[mutable.HashMap[Long, HabrArticle]]("articles")
+    } yield new ChatData(chats, articles)
+
+  implicit val chatDataEq = new Eq[ChatData] {
+    override def eqv(x: ChatData, y: ChatData): Boolean =
+      x.articles == y.articles && x.chats == y.chats
   }
 }
 
-class ChatData(chatCollection: mutable.HashMap[Long, Chat],
-               postCollection: mutable.HashMap[Long, HabrArticle]) {
+class ChatData(private val chats: mutable.HashMap[Long, Chat],
+               private val articles: mutable.HashMap[Long, HabrArticle]) {
 
   private val log = LoggerFactory.getLogger(classOf[ChatData])
 
-  def getChat(id: Long): Chat = chatCollection.getOrElse(id, Chat.withDefaultSettings(id))
+  def getChat(id: Long): Chat = chats.getOrElse(id, Chat.withDefaultSettings(id))
 
   def updateChat(chatId: Long)(mapFunc: Chat => Chat): Unit =
-    chatCollection(chatId) = mapFunc(chatCollection.getOrElse(chatId, Chat.withDefaultSettings(chatId)))
+    chats(chatId) = mapFunc(chats.getOrElse(chatId, Chat.withDefaultSettings(chatId)))
 
   private def predicate(chat: Chat, article: HabrArticle): Boolean = {
     def getMeanOrZero(numbers: Seq[Double]): Double =
@@ -48,36 +76,39 @@ class ChatData(chatCollection: mutable.HashMap[Long, Chat],
   }
 
   private def getSentArticlesUpdates(): Iterable[ChatData.Update] =
-    chatCollection.values
+    chats.values
       .filter(_.subscription)
       .flatMap { chat =>
         chat.sentArticles.values.flatMap { sentArticle =>
-          postCollection.get(sentArticle.articleId)
+          articles.get(sentArticle.articleId)
             .filter(_.lastUpdateTime.after(sentArticle.sentDate))
             .map(pc => ChatData.Update(chat, pc, Some(sentArticle.messageId)))
         }
       }
 
-  private def getNewArticlesUpdates(): Iterable[ChatData.Update]  = {
-    chatCollection.values
+  private def getNewArticlesUpdates(): Iterable[ChatData.Update] = {
+    chats.values
       .filter(_.subscription)
       .flatMap { chat =>
-        postCollection.values
+        articles.values
           .filter(article => !chat.sentArticles.contains(article.id) && predicate(chat, article))
           .map(article => ChatData.Update(chat, article, None))
       }
   }
 
-  def getUpdates(fromDate: Date): Iterable[ChatData.Update]  =
+  def getUpdates(fromDate: Date): Iterable[ChatData.Update] =
     getSentArticlesUpdates() ++ getNewArticlesUpdates()
 
   def updatePosts(posts: Seq[HabrArticle]): Unit =
-    posts.foreach{ post =>
-      postCollection(post.id) = post
+    posts.foreach { post =>
+      articles(post.id) = post
     }
 
   def addSentArticle(chatId: Long, sentArticle: SentArticle): Unit =
     updateChat(chatId) { chat =>
       chat.copy(sentArticles = chat.sentArticles.updated(sentArticle.articleId, sentArticle))
     }
+
+  override def toString: String =
+    ChatData.encode(this)
 }

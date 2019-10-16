@@ -23,7 +23,7 @@ object LibraryActor {
   final case class SubscriptionChanging(chatId: Long, subscribe: Boolean)
   final case class SettingsGetting(chatId: Long)
   final case class SettingsChanging(chatId: Long, body: String)
-  final case class NewPostsSending()
+  final case object NewPostsSending // todo case object
   final case class PostsUpdating(posts: Seq[HabrArticle])
 }
 
