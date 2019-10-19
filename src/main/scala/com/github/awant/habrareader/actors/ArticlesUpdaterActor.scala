@@ -9,17 +9,16 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 
-object ShopActor {
+object ArticlesUpdaterActor {
   def props(config: ShopActorConfig, library: ActorRef): Props =
-    Props(new ShopActor(config.articlesUpdateTimeSeconds.seconds, library))
+    Props(new ArticlesUpdaterActor(config.articlesUpdateTimeSeconds.seconds, library))
 
   final case class UpdatePosts()
 }
 
-// todo rename to AtriclesUpdater
-class ShopActor private(updatePostsInterval: FiniteDuration, library: ActorRef) extends Actor with ActorLogging {
+class ArticlesUpdaterActor private(updatePostsInterval: FiniteDuration, library: ActorRef) extends Actor with ActorLogging {
 
-  import ShopActor._
+  import ArticlesUpdaterActor._
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(0.second, updatePostsInterval, self, UpdatePosts)

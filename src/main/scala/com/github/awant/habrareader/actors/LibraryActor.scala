@@ -23,12 +23,12 @@ object LibraryActor {
   final case class SubscriptionChanging(chatId: Long, subscribe: Boolean)
   final case class SettingsGetting(chatId: Long)
   final case class SettingsChanging(chatId: Long, body: String)
-  final case object NewPostsSending // todo case object
+  final case object NewPostsSending
   final case class PostsUpdating(posts: Seq[HabrArticle])
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
-  // todo loading data from jsons
+  // todo test leoading data from jsons
   import LibraryActor._
 
   val subscriptionReplyInterval: FiniteDuration = config.chatsUpdateTimeSeconds.seconds

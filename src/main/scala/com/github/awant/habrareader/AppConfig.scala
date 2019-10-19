@@ -7,7 +7,7 @@ import pureconfig.generic.auto._
 object AppConfig {
 
   final case class AppConfig(tgbot: TgBotActorConfig,
-                             shop: ShopActorConfig,
+                             articlesUpdater: ShopActorConfig,
                              library: LibraryActorConfig)
 
   final case class ProxyConfig(ip: String, port: Int)
