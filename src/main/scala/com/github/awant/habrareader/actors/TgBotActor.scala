@@ -53,9 +53,9 @@ class TgBotActor private(botConfig: TgBotActorConfig, library: ActorRef) extends
     }.getOrElse(s"author: ${article.author}")
 
   override def receive: Receive = {
-    case Subscription(chatId, set) => library ! LibraryActor.SubscriptionChanging(chatId, set)
-    case Settings(chatId) => library ! LibraryActor.SettingsGetting(chatId)
-    case SettingsUpd(chatId, body) => library ! LibraryActor.SettingsChanging(chatId, body)
+    case Subscription(chatId, set) => library ! LibraryActor.ChangeSubscription(chatId, set)
+    case Settings(chatId) => library ! LibraryActor.GetSettings(chatId)
+    case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg))
     case PostReply(chatId, post) =>
       bot.request(SendMessage(chatId, formMessage(post)))

@@ -3,17 +3,26 @@ package com.github.awant.habrareader
 import com.github.awant.habrareader.utils.ConfigLoader
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.generic.auto._
+import scala.concurrent.duration._
+
+import scala.concurrent.duration.FiniteDuration
 
 object AppConfig {
 
   final case class AppConfig(tgbot: TgBotActorConfig,
-                             articlesUpdater: ShopActorConfig,
+                             articlesUpdater: ArticlesUpdaterConfig,
                              library: LibraryActorConfig)
 
   final case class ProxyConfig(ip: String, port: Int)
   final case class TgBotActorConfig(token: String, proxy: ProxyConfig)
-  final case class ShopActorConfig(articlesUpdateTimeSeconds: Int)
-  final case class LibraryActorConfig(chatsUpdateTimeSeconds: Int, savesDir: String)
+  final case class ArticlesUpdaterConfig(articlesUpdateIntervalSeconds: Int) {
+    def articlesUpdateInterval: FiniteDuration = articlesUpdateIntervalSeconds.seconds
+  }
+
+  final case class LibraryActorConfig(chatsUpdateIntervalSeconds: Int, stateSaveIntervalSeconds: Int, savesDir: String) {
+    def chatsUpdateInterval: FiniteDuration = chatsUpdateIntervalSeconds.seconds
+    def stateSaveInterval: FiniteDuration = stateSaveIntervalSeconds.seconds
+  }
 
   def apply(): AppConfig = config
 
