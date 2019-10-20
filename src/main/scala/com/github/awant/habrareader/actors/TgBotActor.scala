@@ -13,7 +13,7 @@ import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
 import cats.instances.future._
 import cats.syntax.functor._
 import com.github.awant.habrareader.AppConfig.TgBotActorConfig
-import com.github.awant.habrareader.actors.LibraryActor.PostWasSentToTg
+import com.github.awant.habrareader.actors.LibraryActor.{PostWasSentToTg, RequestUpdatesForTg}
 import akka.pattern.pipe
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,15 +30,15 @@ object TgBotActor {
   final case class PostEdit(chatId: Long, messageId: Int, post: HabrArticle)
 }
 
-class TgBotActor private(botConfig: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
+class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
   import TgBotActor._
 
   import ExecutionContext.Implicits.global
 
-  private val bot = ObservableTgBot(botConfig, self)
+  private val bot = ObservableTgBot(config, self)
 
   override def preStart(): Unit = {
-    library ! LibraryActor.BotSubscription(self)
+    context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, self, RequestUpdatesForTg)
     bot.run()
   }
 

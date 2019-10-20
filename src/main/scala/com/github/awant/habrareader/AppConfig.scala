@@ -3,9 +3,8 @@ package com.github.awant.habrareader
 import com.github.awant.habrareader.utils.ConfigLoader
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.generic.auto._
-import scala.concurrent.duration._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 object AppConfig {
 
@@ -14,13 +13,16 @@ object AppConfig {
                              library: LibraryActorConfig)
 
   final case class ProxyConfig(ip: String, port: Int)
-  final case class TgBotActorConfig(token: String, proxy: ProxyConfig)
+
+  final case class TgBotActorConfig(token: String, proxy: ProxyConfig, chatsUpdateIntervalSeconds: Int) {
+    def chatsUpdateInterval: FiniteDuration = chatsUpdateIntervalSeconds.seconds
+  }
+
   final case class ArticlesUpdaterConfig(articlesUpdateIntervalSeconds: Int) {
     def articlesUpdateInterval: FiniteDuration = articlesUpdateIntervalSeconds.seconds
   }
 
-  final case class LibraryActorConfig(chatsUpdateIntervalSeconds: Int, stateSaveIntervalSeconds: Int, savesDir: String) {
-    def chatsUpdateInterval: FiniteDuration = chatsUpdateIntervalSeconds.seconds
+  final case class LibraryActorConfig(stateSaveIntervalSeconds: Int, savesDir: String) {
     def stateSaveInterval: FiniteDuration = stateSaveIntervalSeconds.seconds
   }
 

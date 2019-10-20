@@ -10,24 +10,22 @@ import com.github.awant.habrareader.utils.SettingsRequestParser._
 import com.github.awant.habrareader.utils.{DateUtils, SavesDir}
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration._
 
 
 object LibraryActor {
   def props(config: LibraryActorConfig): Props = Props(new LibraryActor(config))
 
-  final case class BotSubscription(subscriber: ActorRef)
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
   final case class ChangeSubscription(chatId: Long, subscribe: Boolean)
   final case class GetSettings(chatId: Long)
   final case class ChangeSettings(chatId: Long, body: String)
-  final case object NewPostsSending
+  final case object RequestUpdatesForTg
   final case class UpdateArticles(posts: Seq[HabrArticle])
   final case object SaveState
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
-  // todo test leoading data from jsons
+  // todo test loading data from jsons
   import LibraryActor._
 
   val savesDir = new SavesDir(config.savesDir)
@@ -38,26 +36,20 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
-  // todo refactor this, don't store ref
-  var subscribedBot: ActorRef = _
   var chatDataLastTime: Date = DateUtils.currentDate
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, self, NewPostsSending)
     context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState)
   }
 
   override def receive: Receive = {
-    // todo rm this
-    case BotSubscription(subscriber) => subscribedBot = subscriber
-
     case ChangeSubscription(chatId: Long, subscribe: Boolean) =>
       chatData.updateChat(chatId) { chat =>
         chat.copy(subscription = subscribe)
       }
 
     case ChangeSettings(chatId: Long, cmd: String) =>
-      println(s"SettingsChanging($chatId, $cmd)")
+      println(s"SettingsChanging($chatId, $cmd)") // todo use logs for this
 
       cmd match {
         case Command("/reset") =>
@@ -75,13 +67,13 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
             _.copy(ratingThreshold = ratingThreshold)
           }
         case _ =>
-          subscribedBot ! Reply(chatId, s"unknown command: '$cmd'")
+          sender ! Reply(chatId, s"unknown command: '$cmd'")
       }
 
     case GetSettings(chatId) =>
-      subscribedBot ! Reply(chatId, chatData.getChat(chatId).getSettingsPrettify)
-    case NewPostsSending =>
-      processNewPostSending()
+      sender ! Reply(chatId, chatData.getChat(chatId).getSettingsPrettify)
+    case RequestUpdatesForTg =>
+      processNewPostSending(sender)
     case UpdateArticles(posts) =>
       chatData.updatePosts(posts)
     case PostWasSentToTg(chatId, sentArticle) =>
@@ -96,7 +88,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     ChatData.save(chatData, dest)
   }
 
-  private def processNewPostSending(): Unit = {
+  private def processNewPostSending(tgBot: ActorRef): Unit = {
     val currentLast = chatDataLastTime
 
     val updates = chatData.getUpdates(currentLast)
@@ -105,9 +97,9 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
     updates.foreach {
       case ChatData.Update(chat, post, None) =>
-        subscribedBot ! PostReply(chat.id, post)
+        tgBot ! PostReply(chat.id, post)
       case ChatData.Update(chat, post, Some(prevMessageId)) =>
-        subscribedBot ! PostEdit(chat.id, prevMessageId, post)
+        tgBot ! PostEdit(chat.id, prevMessageId, post)
     }
   }
 }
