@@ -29,7 +29,7 @@ case class Chat(id: Long,
 
 object Chat {
   def withDefaultSettings(id: Long) =
-    Chat(id, DateUtils.currentDate, filterSettings = FilterSettings(ratingThreshold = 10.0))
+    Chat(id, DateUtils.currentDate, filterSettings = FilterSettings(ratingThreshold = 20.0))
 
   implicit val encoder: Encoder[Chat] = (chat: Chat) =>
     Json.obj(

@@ -4,7 +4,7 @@ import java.util.Date
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.awant.habrareader.AppConfig.LibraryActorConfig
-import com.github.awant.habrareader.actors.TgBotActor.{PostEdit, PostReply, Reply}
+import com.github.awant.habrareader.actors.TgBotActor.{ArticleEdit, ArticleReply, Reply}
 import com.github.awant.habrareader.models._
 import com.github.awant.habrareader.utils.SettingsRequestParser._
 import com.github.awant.habrareader.utils.{DateUtils, SavesDir}
@@ -105,18 +105,24 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
     updates.foreach {
       case ChatData.Update(chat, post, None) =>
-        tgBot ! PostReply(chat.id, post)
+        tgBot ! ArticleReply(chat.id, post)
       case ChatData.Update(chat, post, Some(prevMessageId)) =>
-        tgBot ! PostEdit(chat.id, prevMessageId, post)
+        tgBot ! ArticleEdit(chat.id, prevMessageId, post)
     }
   }
 
   private def requestUpdates(chatId: Long, tgBot: ActorRef): Unit = {
-    chatData.getNewArticlesForChat(chatId).foreach {
+    val updates = chatData.getNewArticlesForChat(chatId).view.take(3)
+
+    updates.foreach {
       case ChatData.Update(chat, post, None) =>
-        tgBot ! PostReply(chat.id, post)
+        tgBot ! ArticleReply(chat.id, post)
       case ChatData.Update(chat, post, Some(prevMessageId)) =>
-        tgBot ! PostEdit(chat.id, prevMessageId, post)
+        tgBot ! ArticleEdit(chat.id, prevMessageId, post)
+    }
+
+    if (updates.isEmpty) {
+      tgBot ! Reply(chatId, "no new articles :(")
     }
   }
 }

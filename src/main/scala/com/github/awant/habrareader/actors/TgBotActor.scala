@@ -22,11 +22,11 @@ import scala.concurrent.{ExecutionContext, Future}
 object TgBotActor {
   def props(config: TgBotActorConfig, library: ActorRef) = Props(new TgBotActor(config, library))
 
-  final case class Settings(chatId: Long)
+  final case class GetSettings(chatId: Long)
   final case class SettingsUpd(chatId: Long, text: String)
   final case class Reply(chatId: Long, msg: String)
-  final case class PostReply(chatId: Long, post: HabrArticle)
-  final case class PostEdit(chatId: Long, messageId: Int, post: HabrArticle)
+  final case class ArticleReply(chatId: Long, post: HabrArticle)
+  final case class ArticleEdit(chatId: Long, messageId: Int, post: HabrArticle)
 }
 
 class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
@@ -43,23 +43,22 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 
   private def formMessage(article: HabrArticle): String =
     article.metrics.map { m =>
-      s"""author: ${article.author}
-         |up votes: ${m.upVotes}
-         |down votes: ${m.downVotes}
-         |${m.viewsCount} views, ${m.bookmarksCount} bookmarks, ${m.commentsCount} comments
+      s"""author: *${article.author}*
+         |rating: *${m.upVotes - m.downVotes}* = *${m.upVotes}* - *${m.downVotes}*
+         |*${m.viewsCount}* views, *${m.bookmarksCount}* bookmarks, *${m.commentsCount}* comments
          |${article.link}
       """.stripMargin
     }.getOrElse(s"author: ${article.author}")
 
   override def receive: Receive = {
-    case Settings(chatId) => library ! LibraryActor.GetSettings(chatId)
+    case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
     case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg))
-    case PostReply(chatId, post) =>
-      bot.request(SendMessage(chatId, formMessage(post)))
+    case ArticleReply(chatId, post) =>
+      bot.request(SendMessage(chatId, formMessage(post), parseMode = Some(ParseMode.Markdown)))
         .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, post.id, post.lastUpdateTime)))
         .pipeTo(sender)
-    case PostEdit(chatId, messageId, post) =>
+    case ArticleEdit(chatId, messageId, post) =>
       bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(post)))
     case SaveState =>
       library ! SaveState
@@ -75,7 +74,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
 
   onCommand('settings) { msg =>
     Future {
-      observer ! Settings(msg.chat.id)
+      observer ! GetSettings(msg.chat.id)
     }
   }
 
