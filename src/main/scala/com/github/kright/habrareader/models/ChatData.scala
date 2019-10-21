@@ -1,10 +1,10 @@
-package com.github.awant.habrareader.models
+package com.github.kright.habrareader.models
 
 import java.io.File
 import java.util.Date
 
 import cats.Eq
-import com.github.awant.habrareader.Implicits._
+import com.github.kright.habrareader.Implicits._
 import io.circe.syntax._
 import io.circe.{Encoder, Json, _}
 import org.slf4j.LoggerFactory

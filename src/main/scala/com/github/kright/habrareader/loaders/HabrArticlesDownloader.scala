@@ -1,11 +1,13 @@
-package com.github.awant.habrareader.loaders
+package com.github.kright.habrareader.loaders
 
 import java.text.SimpleDateFormat
 import java.util.{Date, Locale, TimeZone}
 
-import com.github.awant.habrareader.Implicits._
-import com.github.awant.habrareader.models.{ArticleMetrics, HabrArticle}
-import com.github.awant.habrareader.utils.DateUtils
+import com.github.kright.habrareader.Implicits._
+import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
+import com.github.kright.habrareader.utils.DateUtils
+import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
+import com.github.kright.habrareader.utils.DateUtils
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL._

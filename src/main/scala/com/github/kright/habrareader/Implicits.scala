@@ -1,4 +1,4 @@
-package com.github.awant.habrareader
+package com.github.kright.habrareader
 
 import java.io.{BufferedWriter, File, FileWriter}
 

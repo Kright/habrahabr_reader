@@ -1,9 +1,9 @@
-package com.github.awant.habrareader.models
+package com.github.kright.habrareader.models
 
 import java.util.Date
 
-import com.github.awant.habrareader.utils.DateUtils
-import com.github.awant.habrareader.utils.DateUtils._
+import com.github.kright.habrareader.utils.DateUtils
+import com.github.kright.habrareader.utils.DateUtils._
 import io.circe._
 import io.circe.syntax._
 

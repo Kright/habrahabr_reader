@@ -1,6 +1,6 @@
-package com.github.awant.habrareader.models
+package com.github.kright.habrareader.models
 
-import com.github.awant.habrareader.utils.DateUtils
+import com.github.kright.habrareader.utils.DateUtils
 import org.scalatest.FunSuite
 
 import scala.collection.mutable

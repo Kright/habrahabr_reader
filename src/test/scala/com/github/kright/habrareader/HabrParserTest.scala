@@ -1,11 +1,11 @@
-package com.github.awant.habrareader
+package com.github.kright.habrareader
 
 import java.io.File
 import java.util.{Calendar, Date, TimeZone}
 
-import com.github.awant.habrareader.Implicits._
-import com.github.awant.habrareader.loaders.HabrArticlesDownloader
-import com.github.awant.habrareader.utils.DateUtils
+import com.github.kright.habrareader.Implicits._
+import com.github.kright.habrareader.loaders.HabrArticlesDownloader
+import com.github.kright.habrareader.utils.DateUtils
 import org.scalatest.{FunSuite, Ignore}
 
 

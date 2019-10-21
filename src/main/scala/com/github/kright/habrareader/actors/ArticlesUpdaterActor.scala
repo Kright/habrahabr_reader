@@ -1,9 +1,9 @@
-package com.github.awant.habrareader.actors
+package com.github.kright.habrareader.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import com.github.awant.habrareader.AppConfig.ArticlesUpdaterConfig
-import com.github.awant.habrareader.loaders.HabrArticlesDownloader
-import com.github.awant.habrareader.utils.DateUtils
+import com.github.kright.habrareader.AppConfig.ArticlesUpdaterConfig
+import com.github.kright.habrareader.loaders.HabrArticlesDownloader
+import com.github.kright.habrareader.utils.DateUtils
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

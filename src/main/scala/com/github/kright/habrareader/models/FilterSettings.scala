@@ -1,4 +1,4 @@
-package com.github.awant.habrareader.models
+package com.github.kright.habrareader.models
 
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}

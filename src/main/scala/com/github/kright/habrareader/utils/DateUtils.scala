@@ -1,4 +1,4 @@
-package com.github.awant.habrareader.utils
+package com.github.kright.habrareader.utils
 
 import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}

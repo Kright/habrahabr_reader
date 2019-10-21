@@ -1,13 +1,13 @@
-package com.github.awant.habrareader.actors
+package com.github.kright.habrareader.actors
 
 import java.util.Date
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import com.github.awant.habrareader.AppConfig.LibraryActorConfig
-import com.github.awant.habrareader.actors.TgBotActor.{ArticleEdit, ArticleReply, Reply}
-import com.github.awant.habrareader.models._
-import com.github.awant.habrareader.utils.SettingsRequestParser._
-import com.github.awant.habrareader.utils.{DateUtils, SavesDir}
+import com.github.kright.habrareader.AppConfig.LibraryActorConfig
+import com.github.kright.habrareader.actors.TgBotActor.{ArticleEdit, ArticleReply, Reply}
+import com.github.kright.habrareader.models._
+import com.github.kright.habrareader.utils.SettingsRequestParser.{Command, CommandDouble, CommandStringDouble}
+import com.github.kright.habrareader.utils.{DateUtils, SavesDir}
 
 import scala.concurrent.ExecutionContextExecutor
 

@@ -1,6 +1,6 @@
-package com.github.awant.habrareader
+package com.github.kright.habrareader
 
-import com.github.awant.habrareader.utils.ConfigLoader
+import com.github.kright.habrareader.utils.ConfigLoader
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.generic.auto._
 

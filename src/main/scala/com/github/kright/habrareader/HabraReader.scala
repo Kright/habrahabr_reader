@@ -1,7 +1,7 @@
-package com.github.awant.habrareader
+package com.github.kright.habrareader
 
 import akka.actor.ActorSystem
-import com.github.awant.habrareader.actors.{LibraryActor, ArticlesUpdaterActor, TgBotActor}
+import com.github.kright.habrareader.actors.{ArticlesUpdaterActor, LibraryActor, TgBotActor}
 
 import scala.concurrent.ExecutionContext
 

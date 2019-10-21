@@ -1,4 +1,4 @@
-package com.github.awant.habrareader.actors
+package com.github.kright.habrareader.actors
 
 import java.net.{InetSocketAddress, Proxy}
 
@@ -11,9 +11,9 @@ import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
-import com.github.awant.habrareader.AppConfig.TgBotActorConfig
-import com.github.awant.habrareader.actors.LibraryActor.{PostWasSentToTg, RequestUpdates, RequestUpdatesForTg, SaveState}
-import com.github.awant.habrareader.models.{HabrArticle, SentArticle}
+import com.github.kright.habrareader.AppConfig.TgBotActorConfig
+import LibraryActor.{PostWasSentToTg, RequestUpdates, RequestUpdatesForTg, SaveState}
+import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
 import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
