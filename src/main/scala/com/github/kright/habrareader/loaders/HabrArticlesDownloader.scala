@@ -1,9 +1,13 @@
-package com.github.awant.habrareader.loaders
+package com.github.kright.habrareader.loaders
 
 import java.text.SimpleDateFormat
 import java.util.{Date, Locale, TimeZone}
 
-import com.github.awant.habrareader.Implicits._
+import com.github.kright.habrareader.Implicits._
+import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
+import com.github.kright.habrareader.utils.DateUtils
+import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
+import com.github.kright.habrareader.utils.DateUtils
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL._
@@ -20,19 +24,29 @@ object HabrArticlesDownloader {
   private def getTextFromUrl(url: String): String = Source.fromURL(url).use(_.getLines().mkString("\n"))
 
   /** may block thread or throw exceptions */
-  def downloadRSSArticles: Seq[HabrArticleImprint] = parseRss(getTextFromUrl(rssURI))
+  def downloadRSSArticles: Seq[HabrArticle] = parseRss(getTextFromUrl(rssURI))
 
   /** may block thread or throw exceptions */
   def downloadArticle(url: String, pubDate: Date): HabrArticle = parseHtml(getTextFromUrl(url), pubDate)
 
-  def parseRss(text: String): Seq[HabrArticleImprint] = {
+  def parseRss(text: String): Seq[HabrArticle] = {
     val root = XML.loadString(text)
     val items = root \ "channel" \ "item"
 
     items.toList.map { item =>
       val link = (item \ "guid").text
-      val pubDate = parseDate((item \ "pubDate").text)
-      HabrArticleImprint(link, pubDate)
+
+      HabrArticle(
+        id = link.split("/")(5).toInt,
+        link = link,
+        title = (item \ "title").text,
+        description = (item \ "description").text,
+        author = (item \ "creator").text,
+        categories = (item \ "category").map(_.text).toSet,
+        metrics = None,
+        publicationDate = parseDate((item \ "pubDate").text),
+        lastUpdateTime = DateUtils.currentDate,
+      )
     }
   }
 
@@ -86,13 +100,17 @@ object HabrArticlesDownloader {
       title = title,
       description = description,
       author = author,
-      publicationDate = pubDate,
       categories = categories,
-      upVotes = upvotes,
-      downVotes = downvotes,
-      viewsCount = views,
-      commentsCount = commentsCount,
-      bookmarksCount = addedToBookmarks)
+      metrics = Some(ArticleMetrics(
+        upVotes = upvotes,
+        downVotes = downvotes,
+        viewsCount = views,
+        commentsCount = commentsCount,
+        bookmarksCount = addedToBookmarks
+      )),
+      publicationDate = pubDate,
+      lastUpdateTime = DateUtils.currentDate
+    )
   }
 
   def parseDate(s: String): Date = dateFormat.parse(s)

@@ -1,21 +1,30 @@
-package com.github.awant.habrareader
+package com.github.kright.habrareader
 
-import com.github.awant.habrareader.utils.ConfigLoader
+import com.github.kright.habrareader.utils.ConfigLoader
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.generic.auto._
+
+import scala.concurrent.duration._
 
 object AppConfig {
 
   final case class AppConfig(tgbot: TgBotActorConfig,
-                             shop: ShopActorConfig,
-                             library: LibraryActorConfig,
-                             mongo: MongoConfig)
+                             articlesUpdater: ArticlesUpdaterConfig,
+                             library: LibraryActorConfig)
 
   final case class ProxyConfig(ip: String, port: Int)
-  final case class TgBotActorConfig(token: String, proxy: ProxyConfig)
-  final case class ShopActorConfig(articlesUpdateTimeSeconds: Int)
-  final case class LibraryActorConfig(chatsUpdateTimeSeconds: Int, updateTgMessages: Boolean)
-  final case class MongoConfig(uri: String, database: String, writeLogs: Boolean)
+
+  final case class TgBotActorConfig(token: String, proxy: ProxyConfig, chatsUpdateIntervalSeconds: Int, admins: Set[Long]) {
+    def chatsUpdateInterval: FiniteDuration = chatsUpdateIntervalSeconds.seconds
+  }
+
+  final case class ArticlesUpdaterConfig(articlesUpdateIntervalSeconds: Int) {
+    def articlesUpdateInterval: FiniteDuration = articlesUpdateIntervalSeconds.seconds
+  }
+
+  final case class LibraryActorConfig(stateSaveIntervalSeconds: Int, savesDir: String) {
+    def stateSaveInterval: FiniteDuration = stateSaveIntervalSeconds.seconds
+  }
 
   def apply(): AppConfig = config
 

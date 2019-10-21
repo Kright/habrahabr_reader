@@ -1,4 +1,4 @@
-package com.github.awant.habrareader.utils
+package com.github.kright.habrareader.utils
 
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.ConfigReader

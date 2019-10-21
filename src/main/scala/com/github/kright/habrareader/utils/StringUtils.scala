@@ -1,4 +1,4 @@
-package com.github.awant.habrareader.utils
+package com.github.kright.habrareader.utils
 
 object StringUtils {
   def decapitalize(string: String): String = {

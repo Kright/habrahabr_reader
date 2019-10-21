@@ -11,7 +11,6 @@ libraryDependencies ++= Seq(
 	"com.softwaremill.sttp" %% "core" % "1.6.4",
   "net.ruippeixotog" %% "scala-scraper" % "2.1.0", // html parsing
   "org.typelevel" %% "cats-core" % "2.0.0-M1", // cats fp
-  "org.mongodb.scala" %% "mongo-scala-driver" % "2.6.0",
 
   "com.typesafe.akka" %% "akka-slf4j" % "2.5.22", // logging
   "ch.qos.logback" % "logback-classic" % "1.2.3", // logging backend
