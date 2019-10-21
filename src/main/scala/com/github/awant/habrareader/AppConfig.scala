@@ -14,7 +14,7 @@ object AppConfig {
 
   final case class ProxyConfig(ip: String, port: Int)
 
-  final case class TgBotActorConfig(token: String, proxy: ProxyConfig, chatsUpdateIntervalSeconds: Int) {
+  final case class TgBotActorConfig(token: String, proxy: ProxyConfig, chatsUpdateIntervalSeconds: Int, admins: Set[Long]) {
     def chatsUpdateInterval: FiniteDuration = chatsUpdateIntervalSeconds.seconds
   }
 

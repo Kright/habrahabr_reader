@@ -18,6 +18,7 @@ object LibraryActor {
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
   final case class GetSettings(chatId: Long)
   final case class ChangeSettings(chatId: Long, body: String)
+  final case class RequestUpdates(chatId: Long)
   final case object RequestUpdatesForTg
   final case class UpdateArticles(posts: Seq[HabrArticle])
   final case object SaveState
@@ -85,11 +86,13 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       chatData.addSentArticle(chatId, sentArticle)
     case SaveState =>
       saveState()
+    case RequestUpdates(chatId) =>
+      requestUpdates(chatId, sender)
   }
 
   private def saveState(): Unit = {
     val dest = savesDir.newSave(DateUtils.currentDate)
-    dest.mkdirs()
+    dest.getParentFile.mkdirs()
     ChatData.save(chatData, dest)
   }
 
@@ -101,6 +104,15 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     chatDataLastTime = newLastDate
 
     updates.foreach {
+      case ChatData.Update(chat, post, None) =>
+        tgBot ! PostReply(chat.id, post)
+      case ChatData.Update(chat, post, Some(prevMessageId)) =>
+        tgBot ! PostEdit(chat.id, prevMessageId, post)
+    }
+  }
+
+  private def requestUpdates(chatId: Long, tgBot: ActorRef): Unit = {
+    chatData.getNewArticlesForChat(chatId).foreach {
       case ChatData.Update(chat, post, None) =>
         tgBot ! PostReply(chat.id, post)
       case ChatData.Update(chat, post, Some(prevMessageId)) =>

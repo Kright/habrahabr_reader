@@ -3,18 +3,18 @@ package com.github.awant.habrareader.actors
 import java.net.{InetSocketAddress, Proxy}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.pipe
+import cats.instances.future._
+import cats.syntax.functor._
 import com.bot4s.telegram.api.RequestHandler
 import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
+import com.github.awant.habrareader.AppConfig.TgBotActorConfig
+import com.github.awant.habrareader.actors.LibraryActor.{PostWasSentToTg, RequestUpdates, RequestUpdatesForTg, SaveState}
 import com.github.awant.habrareader.models.{HabrArticle, SentArticle}
 import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
-import cats.instances.future._
-import cats.syntax.functor._
-import com.github.awant.habrareader.AppConfig.TgBotActorConfig
-import com.github.awant.habrareader.actors.LibraryActor.{PostWasSentToTg, RequestUpdatesForTg}
-import akka.pattern.pipe
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -34,7 +34,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 
   import ExecutionContext.Implicits.global
 
-  private val bot = ObservableTgBot(config, self)
+  private val bot = ObservableTgBot(config, self, config.admins)
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, self, RequestUpdatesForTg)
@@ -60,28 +60,51 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
         .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, post.id, post.lastUpdateTime)))
         .pipeTo(sender)
     case PostEdit(chatId, messageId, post) =>
-      bot.request(EditMessageText(Option(chatId), Option(messageId), text=formMessage(post)))
+      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(post)))
+    case SaveState =>
+      library ! SaveState
+    case r: RequestUpdates =>
+      library ! r
   }
 }
 
 class TgBot(override val client: RequestHandler[Future]) extends TelegramBot with Polling with Commands[Future]
 
-class ObservableTgBot(override val client: RequestHandler[Future], observer: ActorRef) extends TgBot(client) {
+class ObservableTgBot(override val client: RequestHandler[Future], observer: ActorRef, admins: Set[Long]) extends TgBot(client) {
   import TgBotActor._
 
   onCommand('settings) { msg =>
-    Future { observer ! Settings(msg.chat.id) }
+    Future {
+      observer ! Settings(msg.chat.id)
+    }
   }
 
   onCommand('reset | 'author | 'tag | 'rating | 'subscribe | 'unsubscribe) { msg =>
-    Future { observer ! SettingsUpd(msg.chat.id, msg.text.get) }
+    Future {
+      observer ! SettingsUpd(msg.chat.id, msg.text.get)
+    }
+  }
+
+  onCommand('new) { msg =>
+    Future {
+      observer ! RequestUpdates(msg.chat.id)
+    }
+  }
+
+  onCommand('save) { msg =>
+    Future {
+      if (admins.contains(msg.chat.id)) {
+        observer ! SaveState
+      }
+    }
   }
 
   onCommand('start | 'help) { implicit msg =>
     reply(
       s"""Subscription to habrahabr updates with custom filtering
          |/start | /help - list commands
-         |/subscribe - subscribe to receive new articles
+         |/new - request new articles
+         |/subscribe - receive new articles as soon as possible
          |/unsubscribe - unsubscribe
          |/settings - print all settings
          |/reset - reset all weights to default
@@ -98,9 +121,9 @@ object ObservableTgBot {
   LoggerConfig.factory = PrintLoggerFactory()
   LoggerConfig.level = LogLevel.TRACE
 
-  def apply(botConfig: TgBotActorConfig, observer: ActorRef)(implicit ec: ExecutionContext): ObservableTgBot = {
+  def apply(botConfig: TgBotActorConfig, observer: ActorRef, admins: Set[Long])(implicit ec: ExecutionContext): ObservableTgBot = {
     val proxy = if (botConfig.proxy.ip.isEmpty) Proxy.NO_PROXY else
       new Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(botConfig.proxy.ip, botConfig.proxy.port))
-    new ObservableTgBot(new ScalajHttpClient(botConfig.token, proxy), observer)
+    new ObservableTgBot(new ScalajHttpClient(botConfig.token, proxy), observer, admins)
   }
 }

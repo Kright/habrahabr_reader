@@ -99,6 +99,14 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
   def getUpdates(fromDate: Date): Iterable[ChatData.Update] =
     getSentArticlesUpdates() ++ getNewArticlesUpdates()
 
+  def getNewArticlesForChat(chatId: Long): Iterable[ChatData.Update] = {
+    val chat = getChat(chatId)
+
+    articles.values
+      .filter(article => !chat.sentArticles.contains(article.id) && predicate(chat, article))
+      .map(article => ChatData.Update(chat, article, None))
+  }
+
   def updatePosts(posts: Seq[HabrArticle]): Unit =
     posts.foreach { post =>
       articles(post.id) = post

@@ -20,7 +20,8 @@ case class Chat(id: Long,
       ""
 
   def getSettingsPrettify: String =
-    s"""authors weights: ${prettyMap(filterSettings.authorWeights)}
+    s"""instant updates: ${filterSettings.updateAsSoonAsPossible}
+       |authors weights: ${prettyMap(filterSettings.authorWeights)}
        |tags weights: ${prettyMap(filterSettings.tagWeights)}
        |rating threshold: ${filterSettings.ratingThreshold}
     """.stripMargin
