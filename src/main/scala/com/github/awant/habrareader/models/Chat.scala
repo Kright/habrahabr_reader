@@ -10,38 +10,31 @@ import io.circe.syntax._
 
 case class Chat(id: Long,
                 lastUpdateDate: Date,
-                subscription: Boolean,
-                authorWeights: Map[String, Double] = Map.empty,
-                tagWeights: Map[String, Double] = Map.empty,
-                ratingThreshold: Double = 0.0, // todo move to settings
+                filterSettings: FilterSettings,
                 sentArticles: Map[Long, SentArticle] = Map.empty) {
 
   private def prettyMap(map: Map[String, Double]): String =
     if (map.nonEmpty)
-      map.toList.map { case (name, weight) => s"- ${name}: ${weight}" }.mkString("\n", "\n", "")
+      map.toList.map { case (name, weight) => s"- $name: $weight" }.mkString("\n", "\n", "")
     else
       ""
 
   def getSettingsPrettify: String =
-    s"""subscription: $subscription
-       |authors weights: ${prettyMap(authorWeights)}
-       |tags weights: ${prettyMap(tagWeights)}
-       |rating threshold: $ratingThreshold
+    s"""authors weights: ${prettyMap(filterSettings.authorWeights)}
+       |tags weights: ${prettyMap(filterSettings.tagWeights)}
+       |rating threshold: ${filterSettings.ratingThreshold}
     """.stripMargin
 }
 
 object Chat {
   def withDefaultSettings(id: Long) =
-    Chat(id, DateUtils.currentDate, subscription = false, ratingThreshold = 10)
+    Chat(id, DateUtils.currentDate, filterSettings = FilterSettings(ratingThreshold = 10.0))
 
   implicit val encoder: Encoder[Chat] = (chat: Chat) =>
     Json.obj(
       "id" := chat.id,
       "lastUpdateDate" := chat.lastUpdateDate,
-      "subscription" := chat.subscription,
-      "authorWeights" := chat.authorWeights,
-      "tagWeights" := chat.tagWeights,
-      "ratingThreshold" := chat.ratingThreshold,
+      "filterSettings" := chat.filterSettings,
       "sentPosts" := chat.sentArticles,
     )
 
@@ -49,11 +42,8 @@ object Chat {
     for {
       id <- c.get[Long]("id")
       lastUpdateDate <- c.get[Date]("lastUpdateDate")
-      subscription <- c.get[Boolean]("subscription")
-      authorWeights <- c.get[Map[String, Double]]("authorWeights")
-      tagWeights <- c.get[Map[String, Double]]("tagWeights")
-      ratingThreshold <- c.get[Double]("ratingThreshold")
+      filterSettings <- c.get[FilterSettings]("filterSettings")
       sentPosts <- c.get[Map[Long, SentArticle]]("sentPosts")
-    } yield Chat(id, lastUpdateDate, subscription, authorWeights, tagWeights, ratingThreshold, sentPosts)
+    } yield Chat(id, lastUpdateDate, filterSettings, sentPosts)
   }
 }

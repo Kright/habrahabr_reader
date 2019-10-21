@@ -22,7 +22,6 @@ import scala.concurrent.{ExecutionContext, Future}
 object TgBotActor {
   def props(config: TgBotActorConfig, library: ActorRef) = Props(new TgBotActor(config, library))
 
-  final case class Subscription(chatId: Long, set: Boolean)
   final case class Settings(chatId: Long)
   final case class SettingsUpd(chatId: Long, text: String)
   final case class Reply(chatId: Long, msg: String)
@@ -53,7 +52,6 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
     }.getOrElse(s"author: ${article.author}")
 
   override def receive: Receive = {
-    case Subscription(chatId, set) => library ! LibraryActor.ChangeSubscription(chatId, set)
     case Settings(chatId) => library ! LibraryActor.GetSettings(chatId)
     case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg))
@@ -71,19 +69,11 @@ class TgBot(override val client: RequestHandler[Future]) extends TelegramBot wit
 class ObservableTgBot(override val client: RequestHandler[Future], observer: ActorRef) extends TgBot(client) {
   import TgBotActor._
 
-  onCommand('subscribe) { msg =>
-    Future { observer ! Subscription(msg.chat.id, set=true) }
-  }
-
-  onCommand('unsubscribe) { msg =>
-    Future { observer ! Subscription(msg.chat.id, set=false) }
-  }
-
   onCommand('settings) { msg =>
     Future { observer ! Settings(msg.chat.id) }
   }
 
-  onCommand('reset | 'author | 'tag | 'rating) { msg =>
+  onCommand('reset | 'author | 'tag | 'rating | 'subscribe | 'unsubscribe) { msg =>
     Future { observer ! SettingsUpd(msg.chat.id, msg.text.get) }
   }
 

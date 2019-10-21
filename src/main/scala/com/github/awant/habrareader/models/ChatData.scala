@@ -69,15 +69,15 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
 
     val weight =
       article.metrics.map(m => m.upVotes - m.downVotes).getOrElse(0) +
-        chat.authorWeights.getOrElse(article.author, 0.0) +
-        getMeanOrZero(article.categories.toSeq.map(chat.tagWeights.getOrElse(_, 0.0)))
+        chat.filterSettings.authorWeights.getOrElse(article.author, 0.0) +
+        getMeanOrZero(article.categories.toSeq.map(chat.filterSettings.tagWeights.getOrElse(_, 0.0)))
 
-    weight >= chat.ratingThreshold
+    weight >= chat.filterSettings.ratingThreshold
   }
 
   private def getSentArticlesUpdates(): Iterable[ChatData.Update] =
     chats.values
-      .filter(_.subscription)
+      .filter(_.filterSettings.updateAsSoonAsPossible)
       .flatMap { chat =>
         chat.sentArticles.values.flatMap { sentArticle =>
           articles.get(sentArticle.articleId)
@@ -88,7 +88,7 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
 
   private def getNewArticlesUpdates(): Iterable[ChatData.Update] = {
     chats.values
-      .filter(_.subscription)
+      .filter(_.filterSettings.updateAsSoonAsPossible)
       .flatMap { chat =>
         articles.values
           .filter(article => !chat.sentArticles.contains(article.id) && predicate(chat, article))

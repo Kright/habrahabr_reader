@@ -5,7 +5,7 @@ import java.util.Date
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.awant.habrareader.AppConfig.LibraryActorConfig
 import com.github.awant.habrareader.actors.TgBotActor.{PostEdit, PostReply, Reply}
-import com.github.awant.habrareader.models.{Chat, ChatData, HabrArticle, SentArticle}
+import com.github.awant.habrareader.models._
 import com.github.awant.habrareader.utils.SettingsRequestParser._
 import com.github.awant.habrareader.utils.{DateUtils, SavesDir}
 
@@ -16,7 +16,6 @@ object LibraryActor {
   def props(config: LibraryActorConfig): Props = Props(new LibraryActor(config))
 
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
-  final case class ChangeSubscription(chatId: Long, subscribe: Boolean)
   final case class GetSettings(chatId: Long)
   final case class ChangeSettings(chatId: Long, body: String)
   final case object RequestUpdatesForTg
@@ -43,28 +42,34 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   }
 
   override def receive: Receive = {
-    case ChangeSubscription(chatId: Long, subscribe: Boolean) =>
-      chatData.updateChat(chatId) { chat =>
-        chat.copy(subscription = subscribe)
-      }
-
     case ChangeSettings(chatId: Long, cmd: String) =>
       println(s"SettingsChanging($chatId, $cmd)") // todo use logs for this
+
+      def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
+        chat => chat.copy(filterSettings = updater(chat.filterSettings))
 
       cmd match {
         case Command("/reset") =>
           chatData.updateChat(chatId)(_ => Chat.withDefaultSettings(chatId))
+        case Command("/subscribe") =>
+          chatData.updateChat(chatId) {
+            updateSettings(settings => settings.copy(updateAsSoonAsPossible = true))
+          }
+        case Command("/unsubscribe") =>
+          chatData.updateChat(chatId) {
+            updateSettings(settings => settings.copy(updateAsSoonAsPossible = false))
+          }
         case CommandStringDouble("/author", name, weight) =>
-          chatData.updateChat(chatId) { chat =>
-            chat.copy(authorWeights = chat.authorWeights.updated(name, weight))
+          chatData.updateChat(chatId) {
+            updateSettings(s => s.copy(authorWeights = s.authorWeights.updated(name, weight)))
           }
         case CommandStringDouble("/tag", name, weight) =>
-          chatData.updateChat(chatId) { chat =>
-            chat.copy(tagWeights = chat.tagWeights.updated(name, weight))
+          chatData.updateChat(chatId) {
+            updateSettings(s => s.copy(tagWeights = s.tagWeights.updated(name, weight)))
           }
         case CommandDouble("/rating", ratingThreshold) =>
           chatData.updateChat(chatId) {
-            _.copy(ratingThreshold = ratingThreshold)
+            updateSettings(s => s.copy(ratingThreshold = ratingThreshold))
           }
         case _ =>
           sender ! Reply(chatId, s"unknown command: '$cmd'")

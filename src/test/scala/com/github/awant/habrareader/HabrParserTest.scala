@@ -19,8 +19,6 @@ class HabrParserTest extends FunSuite {
 
     assert(result.nonEmpty)
 
-    assert(result.nonEmpty)
-
     val first = result.head
 
     assert(first.id == 461617)
