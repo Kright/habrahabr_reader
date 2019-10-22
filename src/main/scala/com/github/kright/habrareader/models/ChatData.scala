@@ -117,6 +117,9 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
       chat.copy(sentArticles = chat.sentArticles.updated(sentArticle.articleId, sentArticle))
     }
 
+  def getArticles: Vector[HabrArticle] =
+    articles.values.toVector
+
   override def toString: String =
     ChatData.encode(this)
 }

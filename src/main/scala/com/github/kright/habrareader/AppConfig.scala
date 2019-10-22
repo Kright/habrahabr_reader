@@ -18,9 +18,8 @@ object AppConfig {
     def chatsUpdateInterval: FiniteDuration = chatsUpdateIntervalSeconds.seconds
   }
 
-  final case class ArticlesUpdaterConfig(articlesUpdateIntervalSeconds: Int) {
-    def articlesUpdateInterval: FiniteDuration = articlesUpdateIntervalSeconds.seconds
-  }
+  final case class ArticlesUpdaterConfig(searchNewArticlesIntervalSeconds: Int,
+                                         articlesUpdateIntervalSeconds: Int)
 
   final case class LibraryActorConfig(stateSaveIntervalSeconds: Int, savesDir: String) {
     def stateSaveInterval: FiniteDuration = stateSaveIntervalSeconds.seconds

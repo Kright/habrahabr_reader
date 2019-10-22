@@ -22,6 +22,9 @@ object LibraryActor {
   final case object RequestUpdatesForTg
   final case class UpdateArticles(posts: Seq[HabrArticle])
   final case object SaveState
+
+  final case object GetArticles
+  final case class AllArticles(articles: Iterable[HabrArticle])
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
@@ -88,6 +91,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       saveState()
     case RequestUpdates(chatId) =>
       requestUpdates(chatId, sender)
+    case GetArticles =>
+      sender ! AllArticles(chatData.getArticles)
   }
 
   private def saveState(): Unit = {
