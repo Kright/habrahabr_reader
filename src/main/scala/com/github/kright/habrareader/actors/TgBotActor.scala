@@ -37,7 +37,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
   private val bot = ObservableTgBot(config, self, config.admins)
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, self, RequestUpdatesForTg)
+    context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, library, RequestUpdatesForTg)
     bot.run()
   }
 

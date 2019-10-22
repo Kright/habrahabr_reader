@@ -96,7 +96,7 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
       }
   }
 
-  def getUpdates(fromDate: Date): Iterable[ChatData.Update] =
+  def getUpdates(): Iterable[ChatData.Update] =
     getSentArticlesUpdates() ++ getNewArticlesUpdates()
 
   def getNewArticlesForChat(chatId: Long): Iterable[ChatData.Update] = {

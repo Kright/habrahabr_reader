@@ -59,6 +59,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
           chatData.updateChat(chatId) {
             updateSettings(settings => settings.copy(updateAsSoonAsPossible = true))
           }
+          requestUpdates(chatId, sender)
         case Command("/unsubscribe") =>
           chatData.updateChat(chatId) {
             updateSettings(settings => settings.copy(updateAsSoonAsPossible = false))
@@ -102,13 +103,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   }
 
   private def processNewPostSending(tgBot: ActorRef): Unit = {
-    val currentLast = chatDataLastTime
-
-    val updates = chatData.getUpdates(currentLast)
-    val newLastDate = updates.view.map(_.date).foldLeft(currentLast)(DateUtils.getLast)
-    chatDataLastTime = newLastDate
-
-    updates.foreach {
+    chatData.getUpdates().foreach {
       case ChatData.Update(chat, post, None) =>
         tgBot ! ArticleReply(chat.id, post)
       case ChatData.Update(chat, post, Some(prevMessageId)) =>
