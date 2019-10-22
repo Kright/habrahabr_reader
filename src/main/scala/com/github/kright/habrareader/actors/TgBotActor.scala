@@ -43,9 +43,10 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 
   private def formMessage(article: HabrArticle): String =
     article.metrics.map { m =>
-      s"""author: *${article.author}*
-         |rating: *${m.upVotes - m.downVotes}* = *${m.upVotes}* - *${m.downVotes}*
-         |*${m.viewsCount}* views, *${m.bookmarksCount}* bookmarks, *${m.commentsCount}* comments
+      s"""author: <b>${article.author}</b>
+         |rating: <b>${m.upVotes - m.downVotes}</b> = <b>${m.upVotes}</b> - <b>${m.downVotes}</b>
+         |<b>${m.viewsCount}</b> views, <b>${m.bookmarksCount}</b> bookmarks, <b>${m.commentsCount}</b> comments
+         |tags: ${article.normalizedCategories.map(t => s"#$t").mkString("{", ", ", "}")}
          |${article.link}
       """.stripMargin
     }.getOrElse(s"author: ${article.author}")
@@ -55,11 +56,11 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
     case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg))
     case ArticleReply(chatId, post) =>
-      bot.request(SendMessage(chatId, formMessage(post), parseMode = Some(ParseMode.Markdown)))
+      bot.request(SendMessage(chatId, formMessage(post), parseMode = Some(ParseMode.HTML)))
         .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, post.id, post.lastUpdateTime)))
         .pipeTo(sender)
     case ArticleEdit(chatId, messageId, post) =>
-      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(post)))
+      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(post), parseMode = Some(ParseMode.HTML) ))
     case SaveState =>
       library ! SaveState
     case r: RequestUpdates =>

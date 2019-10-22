@@ -22,6 +22,9 @@ case class HabrArticle(id: Int,
       case art: HabrArticle => art.id == this.id
       case _ => false
     }
+
+  def normalizedCategories: Set[String] =
+    categories.map(_.toLowerCase.replace(' ', '_'))
 }
 
 object HabrArticle {
