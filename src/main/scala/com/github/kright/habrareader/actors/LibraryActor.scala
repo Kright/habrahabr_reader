@@ -22,9 +22,17 @@ object LibraryActor {
   final case object RequestUpdatesForTg
   final case class UpdateArticles(posts: Seq[HabrArticle])
   final case object SaveState
-
+  final case class GetStats(chatId: Long)
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
+
+  final case class Stats(articlesCount: Int, usersCount: Int, subscribedUsersCount: Int) {
+    def formatForTg: String =
+      s"""articles: <b>$articlesCount</b>
+         |users: <b>$usersCount</b>
+         |subscribed users: <b>$subscribedUsersCount</b>
+      """.stripMargin
+  }
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
@@ -94,6 +102,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       requestUpdates(chatId, sender)
     case GetArticles =>
       sender ! AllArticles(chatData.getArticles)
+    case GetStats(chatId) =>
+      sender ! Reply(chatId, chatData.getStats().formatForTg)
   }
 
   private def saveState(): Unit = {

@@ -12,7 +12,7 @@ import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
-import LibraryActor.{PostWasSentToTg, RequestUpdates, RequestUpdatesForTg, SaveState}
+import LibraryActor._
 import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
 import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
 
@@ -54,7 +54,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
   override def receive: Receive = {
     case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
     case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
-    case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg))
+    case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
     case ArticleReply(chatId, post) =>
       bot.request(SendMessage(chatId, formMessage(post), parseMode = Some(ParseMode.HTML)))
         .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, post.id, post.lastUpdateTime)))
@@ -63,6 +63,8 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
       bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(post), parseMode = Some(ParseMode.HTML) ))
     case SaveState =>
       library ! SaveState
+    case GetStats =>
+      library ! GetStats
     case r: RequestUpdates =>
       library ! r
   }
@@ -92,6 +94,14 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
   }
 
   onCommand('save) { msg =>
+    Future {
+      if (admins.contains(msg.chat.id)) {
+        observer ! SaveState
+      }
+    }
+  }
+
+  onCommand('stats) { msg =>
     Future {
       if (admins.contains(msg.chat.id)) {
         observer ! SaveState

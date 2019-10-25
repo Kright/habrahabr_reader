@@ -5,6 +5,7 @@ import java.util.Date
 
 import cats.Eq
 import com.github.kright.habrareader.Implicits._
+import com.github.kright.habrareader.actors.LibraryActor.Stats
 import io.circe.syntax._
 import io.circe.{Encoder, Json, _}
 import org.slf4j.LoggerFactory
@@ -122,4 +123,10 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
 
   override def toString: String =
     ChatData.encode(this)
+
+  def getStats(): Stats = Stats(
+    articlesCount = articles.size,
+    usersCount = chats.size,
+    subscribedUsersCount = chats.valuesIterator.count(_.filterSettings.updateAsSoonAsPossible)
+  )
 }
