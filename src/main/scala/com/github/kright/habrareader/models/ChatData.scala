@@ -91,7 +91,7 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
       .filter(_.filterSettings.updateAsSoonAsPossible)
       .flatMap { chat =>
         articles.values
-          .filter(article => !chat.sentArticles.contains(article.id) && predicate(chat, article))
+          .filter(article => !chat.sentArticles.contains(article.id) && chat.filterSettings.isInteresting(article))
           .map(article => ChatData.Update(chat, article, None))
       }
   }
@@ -103,7 +103,7 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
     val chat = getChat(chatId)
 
     articles.values
-      .filter(article => !chat.sentArticles.contains(article.id) && predicate(chat, article))
+      .filter(article => !chat.sentArticles.contains(article.id) && chat.filterSettings.isInteresting(article))
       .map(article => ChatData.Update(chat, article, None))
   }
 

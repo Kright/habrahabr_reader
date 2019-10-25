@@ -46,7 +46,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
       s"""author: <b>${article.author}</b>
          |rating: <b>${m.upVotes - m.downVotes}</b> = <b>${m.upVotes}</b> - <b>${m.downVotes}</b>
          |<b>${m.viewsCount}</b> views, <b>${m.bookmarksCount}</b> bookmarks, <b>${m.commentsCount}</b> comments
-         |tags: ${article.normalizedCategories.map(t => s"#$t").mkString("{", ", ", "}")}
+         |tags: ${article.categoriesNormalized.map(t => s"#$t").mkString("{", ", ", "}")}
          |${article.link}
       """.stripMargin
     }.getOrElse(s"author: ${article.author}")

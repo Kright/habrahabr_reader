@@ -3,6 +3,7 @@ package com.github.kright.habrareader.models
 import java.util.Date
 
 import com.github.kright.habrareader.utils.DateUtils._
+import com.github.kright.habrareader.utils.TextNormalization
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
@@ -15,6 +16,9 @@ case class HabrArticle(id: Int,
                        metrics: Option[ArticleMetrics],
                        publicationDate: Date,
                        lastUpdateTime: Date) {
+
+  val categoriesNormalized = categories.map(TextNormalization.normalize)
+
   override def hashCode(): Int = id
 
   override def equals(obj: Any): Boolean =
@@ -22,9 +26,6 @@ case class HabrArticle(id: Int,
       case art: HabrArticle => art.id == this.id
       case _ => false
     }
-
-  def normalizedCategories: Set[String] =
-    categories.map(_.toLowerCase.replace(' ', '_'))
 }
 
 object HabrArticle {
