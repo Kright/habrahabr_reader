@@ -20,7 +20,7 @@ object LibraryActor {
   final case class ChangeSettings(chatId: Long, body: String)
   final case class RequestUpdates(chatId: Long)
   final case object RequestUpdatesForTg
-  final case class UpdateArticles(posts: Seq[HabrArticle])
+  final case class UpdateArticles(articles: Seq[HabrArticle])
   final case object SaveState
   final case class GetStats(chatId: Long)
   final case object GetArticles
@@ -33,9 +33,14 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
   val savesDir = new SavesDir(config.savesDir)
 
-  // todo print logs if can't load
-  // todo handling errors
-  val chatData = savesDir.loadLast().map(ChatData.load).getOrElse(ChatData.empty())
+  val chatData =
+    savesDir.loadLast().map{ file =>
+      log.info(s"load previous state from ${file.getAbsolutePath}")
+      ChatData.load(file)
+    }.getOrElse{
+      log.info(s"previous save wasn't found, use empty")
+      ChatData.empty()
+    }
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
@@ -47,8 +52,6 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case ChangeSettings(chatId: Long, cmd: String) =>
-      println(s"SettingsChanging($chatId, $cmd)") // todo use logs for this
-
       def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
         chat => chat.copy(filterSettings = updater(chat.filterSettings))
 
@@ -84,8 +87,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       sender ! Reply(chatId, chatData.getChat(chatId).getSettingsPrettify)
     case RequestUpdatesForTg =>
       processNewPostSending(sender)
-    case UpdateArticles(posts) =>
-      chatData.updatePosts(posts)
+    case UpdateArticles(articles) =>
+      chatData.updateArticles(articles)
     case PostWasSentToTg(chatId, sentArticle) =>
       chatData.addSentArticle(chatId, sentArticle)
     case SaveState =>

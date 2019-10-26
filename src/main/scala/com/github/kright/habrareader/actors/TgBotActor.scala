@@ -24,7 +24,7 @@ object TgBotActor {
   final case class GetSettings(chatId: Long)
   final case class SettingsUpd(chatId: Long, text: String)
   final case class Reply(chatId: Long, msg: String)
-  final case class UpdateArticle(chatId: Long, post: HabrArticle, messageId: Option[Int])
+  final case class UpdateArticle(chatId: Long, article: HabrArticle, messageId: Option[Int])
 }
 
 class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
@@ -53,12 +53,12 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
     case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
     case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
-    case UpdateArticle(chatId, post, None) =>
-      bot.request(SendMessage(chatId, formMessage(post), parseMode = Some(ParseMode.HTML)))
-        .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, post.id, post.lastUpdateTime)))
+    case UpdateArticle(chatId, article, None) =>
+      bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
+        .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, article.id, article.lastUpdateTime)))
         .pipeTo(sender)
-    case UpdateArticle(chatId, post, Some(messageId)) =>
-      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(post), parseMode = Some(ParseMode.HTML) ))
+    case UpdateArticle(chatId, article, Some(messageId)) =>
+      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML) ))
     case SaveState =>
       library ! SaveState
     case GetStats =>

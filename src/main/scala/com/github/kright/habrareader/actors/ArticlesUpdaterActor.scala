@@ -38,7 +38,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
     val now = DateUtils.currentDate
     val habrArticles = HabrArticlesDownloader.getArticles()
 
-    log.debug(s"update posts: ${habrArticles.map(_.title).mkString("[", ", ", "]")}")
+    log.debug(s"add new articles: ${habrArticles.map(_.title).mkString("[", ", ", "]")}")
     library ! LibraryActor.UpdateArticles(habrArticles)
   }
 

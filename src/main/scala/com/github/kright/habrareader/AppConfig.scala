@@ -35,7 +35,7 @@ object AppConfig {
 
   private lazy val config: AppConfig = {
     val loaded = pureconfig.loadConfig[AppConfig](untyped)
-    println(s"loaded config = ${loaded}: ${loaded.right}")
+    assert(loaded.isRight, s"can't load config: $loaded")
     loaded.right.get
   }
 

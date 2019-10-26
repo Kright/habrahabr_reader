@@ -76,9 +76,9 @@ class ChatData(val chats: mutable.HashMap[Long, Chat],
       .map(article => UpdateArticle(chatId, article, None))
   }
 
-  def updatePosts(posts: Seq[HabrArticle]): Unit =
-    posts.foreach { post =>
-      articles(post.id) = post
+  def updateArticles(newArticles: Seq[HabrArticle]): Unit =
+    newArticles.foreach { article =>
+      articles(article.id) = article
     }
 
   def addSentArticle(chatId: Long, sentArticle: SentArticle): Unit =
