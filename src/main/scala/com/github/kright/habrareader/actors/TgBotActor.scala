@@ -23,7 +23,7 @@ object TgBotActor {
   def props(config: TgBotActorConfig, library: ActorRef) = Props(new TgBotActor(config, library))
 
   final case class GetSettings(chatId: Long)
-  final case class Reply(chatId: Long, msg: String)
+  final case class SendMessageToTg(chatId: Long, msg: String)
   final case class UpdateArticle(chatId: Long, article: HabrArticle, messageId: Option[Int])
 }
 
@@ -35,7 +35,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
   private val bot = ObservableTgBot(config, self, config.admins)
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, library, RequestUpdatesForTg)
+    context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, library, RequestUpdatesForAll(config.updateExistingMessages))
     bot.run()
   }
 
@@ -51,7 +51,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 
   override def receive: Receive = {
     case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
-    case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
+    case SendMessageToTg(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
     case UpdateArticle(chatId, article, None) =>
       bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
         .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, article.id, article.lastUpdateTime)))
@@ -100,7 +100,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
         case CommandDouble("/rating", ratingThreshold) =>
           observer ! UpdateChat(chatId, updateSettings(s => s.copy(ratingThreshold = ratingThreshold)))
         case _ =>
-          observer ! Reply(chatId, s"unknown command: '$cmd'")
+          observer ! SendMessageToTg(chatId, s"unknown command: '$cmd'")
       }
     }
   }

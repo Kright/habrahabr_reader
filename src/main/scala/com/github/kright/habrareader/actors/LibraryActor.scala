@@ -4,7 +4,7 @@ import java.util.Date
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.LibraryActorConfig
-import com.github.kright.habrareader.actors.TgBotActor.Reply
+import com.github.kright.habrareader.actors.TgBotActor.SendMessageToTg
 import com.github.kright.habrareader.models._
 import com.github.kright.habrareader.utils.{DateUtils, SavesDir}
 
@@ -18,7 +18,7 @@ object LibraryActor {
   final case class GetSettings(chatId: Long)
   final case class UpdateChat(chatId: Long, updater: Chat => Chat)
   final case class RequestUpdates(chatId: Long)
-  final case object RequestUpdatesForTg
+  final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
   final case class UpdateArticles(articles: Seq[HabrArticle])
   final case object SaveState
   final case class GetStats(chatId: Long)
@@ -53,9 +53,9 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     case UpdateChat(chatId, updater) =>
       chatData.updateChat(chatId)(updater)
     case GetSettings(chatId) =>
-      sender ! Reply(chatId, chatData.getChat(chatId).getSettingsPrettify)
-    case RequestUpdatesForTg =>
-      processNewPostSending(sender)
+      sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsPrettify)
+    case RequestUpdatesForAll(updateExistingMessages) =>
+      processNewPostSending(sender, updateExistingMessages)
     case UpdateArticles(articles) =>
       chatData.updateArticles(articles)
     case PostWasSentToTg(chatId, sentArticle) =>
@@ -67,7 +67,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     case GetArticles =>
       sender ! AllArticles(chatData.articles.values.toVector)
     case GetStats(chatId) =>
-      sender ! Reply(chatId, getStatsMsg)
+      sender ! SendMessageToTg(chatId, getStatsMsg)
     case unknownMessage =>
       log.error(s"unknown message: $unknownMessage")
   }
@@ -84,10 +84,14 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
        |subscribed users: <b>${chatData.chats.values.count(_.filterSettings.updateAsSoonAsPossible)}</b>
       """.stripMargin
 
-  private def processNewPostSending(tgBot: ActorRef): Unit =
-    for ((id, chat) <- chatData.chats if chat.filterSettings.updateAsSoonAsPossible) {
-      chatData.getNewArticles(id).foreach(tgBot ! _)
-      chatData.getSentArticleUpdates(id).foreach(tgBot ! _)
+  private def processNewPostSending(tgBot: ActorRef, updateExistingMessages: Boolean): Unit =
+    for ((id, chat) <- chatData.chats) {
+      if (chat.filterSettings.updateAsSoonAsPossible) {
+        chatData.getNewArticles(id).foreach(tgBot ! _)
+      }
+      if (updateExistingMessages) {
+        chatData.getSentArticleUpdates(id).foreach(tgBot ! _)
+      }
     }
 
   private def requestUpdates(chatId: Long, tgBot: ActorRef): Unit = {
@@ -96,7 +100,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     updates.view.take(3).foreach(tgBot ! _)
 
     if (updates.isEmpty) {
-      tgBot ! Reply(chatId, "no new articles :(")
+      tgBot ! SendMessageToTg(chatId, "no new articles :(")
     }
   }
 }
