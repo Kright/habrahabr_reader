@@ -14,7 +14,6 @@ import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import LibraryActor._
 import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
-import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -127,9 +126,6 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
 }
 
 object ObservableTgBot {
-  LoggerConfig.factory = PrintLoggerFactory()
-  LoggerConfig.level = LogLevel.TRACE
-
   def apply(botConfig: TgBotActorConfig, observer: ActorRef, admins: Set[Long])(implicit ec: ExecutionContext): ObservableTgBot = {
     val proxy = if (botConfig.proxy.ip.isEmpty) Proxy.NO_PROXY else
       new Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(botConfig.proxy.ip, botConfig.proxy.port))

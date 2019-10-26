@@ -1,6 +1,5 @@
 package com.github.kright.habrareader
 
-import com.github.kright.habrareader.utils.ConfigLoader
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.generic.auto._
 
@@ -30,21 +29,15 @@ object AppConfig {
   def asUntyped: Config = untyped
 
   private lazy val untyped: Config = {
-    val configNames: Seq[String] = {
-      val isServer = sys.env.get("HABRA_READER_SERVER").isDefined
-
-      if (isServer)
-        Seq("prod.conf", "application.conf")
-      else
-        Seq("local.conf", "application.conf")
-    }.filter(ConfigLoader.isResourceExists)
-
-    configNames.map(ConfigFactory.load).reduce(_.withFallback(_))
+    val local = "local.conf"
+    ConfigFactory.load(if (isResourceExists(local)) local else "application.conf")
   }
 
   private lazy val config: AppConfig = {
     val loaded = pureconfig.loadConfig[AppConfig](untyped)
-    println(s"loaded config = $loaded")
+    println(s"loaded config = ${loaded}: ${loaded.right}")
     loaded.right.get
   }
+
+  private def isResourceExists(name: String): Boolean = getClass.getClassLoader.getResource(name) != null
 }
