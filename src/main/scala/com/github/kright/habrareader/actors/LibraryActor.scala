@@ -6,7 +6,6 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.LibraryActorConfig
 import com.github.kright.habrareader.actors.TgBotActor.Reply
 import com.github.kright.habrareader.models._
-import com.github.kright.habrareader.utils.SettingsRequestParser.{Command, CommandDouble, CommandStringDouble}
 import com.github.kright.habrareader.utils.{DateUtils, SavesDir}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -17,7 +16,7 @@ object LibraryActor {
 
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
   final case class GetSettings(chatId: Long)
-  final case class ChangeSettings(chatId: Long, body: String)
+  final case class UpdateChat(chatId: Long, updater: Chat => Chat)
   final case class RequestUpdates(chatId: Long)
   final case object RequestUpdatesForTg
   final case class UpdateArticles(articles: Seq[HabrArticle])
@@ -51,38 +50,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   }
 
   override def receive: Receive = {
-    case ChangeSettings(chatId: Long, cmd: String) =>
-      def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
-        chat => chat.copy(filterSettings = updater(chat.filterSettings))
-
-      cmd match {
-        case Command("/reset") =>
-          chatData.updateChat(chatId)(_ => Chat.withDefaultSettings(chatId))
-        case Command("/subscribe") =>
-          chatData.updateChat(chatId) {
-            updateSettings(settings => settings.copy(updateAsSoonAsPossible = true))
-          }
-          requestUpdates(chatId, sender)
-        case Command("/unsubscribe") =>
-          chatData.updateChat(chatId) {
-            updateSettings(settings => settings.copy(updateAsSoonAsPossible = false))
-          }
-        case CommandStringDouble("/author", name, weight) =>
-          chatData.updateChat(chatId) {
-            updateSettings(s => s.copy(authorWeights = s.authorWeights.updated(name, weight)))
-          }
-        case CommandStringDouble("/tag", name, weight) =>
-          chatData.updateChat(chatId) {
-            updateSettings(s => s.copy(tagWeights = s.tagWeights.updated(name, weight)))
-          }
-        case CommandDouble("/rating", ratingThreshold) =>
-          chatData.updateChat(chatId) {
-            updateSettings(s => s.copy(ratingThreshold = ratingThreshold))
-          }
-        case _ =>
-          sender ! Reply(chatId, s"unknown command: '$cmd'")
-      }
-
+    case UpdateChat(chatId, updater) =>
+      chatData.updateChat(chatId)(updater)
     case GetSettings(chatId) =>
       sender ! Reply(chatId, chatData.getChat(chatId).getSettingsPrettify)
     case RequestUpdatesForTg =>
@@ -99,6 +68,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       sender ! AllArticles(chatData.articles.values.toVector)
     case GetStats(chatId) =>
       sender ! Reply(chatId, getStatsMsg)
+    case unknownMessage =>
+      log.error(s"unknown message: $unknownMessage")
   }
 
   private def saveState(): Unit = {

@@ -13,7 +13,8 @@ import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import LibraryActor._
-import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
+import com.github.kright.habrareader.models.{Chat, FilterSettings, HabrArticle, SentArticle}
+import com.github.kright.habrareader.utils.SettingsRequestParser.{Command, CommandDouble, CommandStringDouble}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -22,7 +23,6 @@ object TgBotActor {
   def props(config: TgBotActorConfig, library: ActorRef) = Props(new TgBotActor(config, library))
 
   final case class GetSettings(chatId: Long)
-  final case class SettingsUpd(chatId: Long, text: String)
   final case class Reply(chatId: Long, msg: String)
   final case class UpdateArticle(chatId: Long, article: HabrArticle, messageId: Option[Int])
 }
@@ -51,7 +51,6 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 
   override def receive: Receive = {
     case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
-    case SettingsUpd(chatId, body) => library ! LibraryActor.ChangeSettings(chatId, body)
     case Reply(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
     case UpdateArticle(chatId, article, None) =>
       bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
@@ -59,12 +58,11 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
         .pipeTo(sender)
     case UpdateArticle(chatId, article, Some(messageId)) =>
       bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML) ))
-    case SaveState =>
-      library ! SaveState
-    case GetStats =>
-      library ! GetStats
-    case r: RequestUpdates =>
-      library ! r
+    case msg: RequestUpdates => library ! msg
+    case msg: UpdateChat => library ! msg
+    case msg: GetStats => library ! msg
+    case SaveState => library ! SaveState
+    case unknownMessage => log.error(s"unknown message: $unknownMessage")
   }
 }
 
@@ -81,7 +79,29 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
 
   onCommand('reset | 'author | 'tag | 'rating | 'subscribe | 'unsubscribe) { msg =>
     Future {
-      observer ! SettingsUpd(msg.chat.id, msg.text.get)
+      val cmd = msg.text.get
+      val chatId = msg.chat.id
+
+      def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
+        chat => chat.copy(filterSettings = updater(chat.filterSettings))
+
+      cmd match {
+        case Command("/reset") =>
+          observer ! UpdateChat(chatId, _ => Chat.withDefaultSettings(chatId))
+        case Command("/subscribe") =>
+          observer ! UpdateChat(chatId, updateSettings(settings => settings.copy(updateAsSoonAsPossible = true)))
+          observer ! RequestUpdates(msg.chat.id)
+        case Command("/unsubscribe") =>
+          observer ! UpdateChat(chatId, updateSettings(settings => settings.copy(updateAsSoonAsPossible = false)))
+        case CommandStringDouble("/author", name, weight) =>
+          observer ! UpdateChat(chatId, updateSettings(s => s.copy(authorWeights = s.authorWeights.updated(name, weight))))
+        case CommandStringDouble("/tag", name, weight) =>
+          observer ! UpdateChat(chatId, updateSettings(s => s.copy(tagWeights = s.tagWeights.updated(name, weight))))
+        case CommandDouble("/rating", ratingThreshold) =>
+          observer ! UpdateChat(chatId, updateSettings(s => s.copy(ratingThreshold = ratingThreshold)))
+        case _ =>
+          observer ! Reply(chatId, s"unknown command: '$cmd'")
+      }
     }
   }
 
@@ -102,7 +122,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
   onCommand('stats) { msg =>
     Future {
       if (admins.contains(msg.chat.id)) {
-        observer ! SaveState
+        observer ! GetStats(msg.chat.id)
       }
     }
   }
