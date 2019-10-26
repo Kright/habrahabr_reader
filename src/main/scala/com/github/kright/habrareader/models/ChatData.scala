@@ -1,11 +1,10 @@
 package com.github.kright.habrareader.models
 
 import java.io.File
-import java.util.Date
 
 import cats.Eq
 import com.github.kright.habrareader.Implicits._
-import com.github.kright.habrareader.actors.LibraryActor.Stats
+import com.github.kright.habrareader.actors.TgBotActor.UpdateArticle
 import io.circe.syntax._
 import io.circe.{Encoder, Json, _}
 import org.slf4j.LoggerFactory
@@ -13,10 +12,6 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 
 object ChatData {
-
-  case class Update(chat: Chat, article: HabrArticle, prevMessageId: Option[Int] = None) {
-    def date: Date = article.lastUpdateTime
-  }
 
   def empty(): ChatData =
     new ChatData(new mutable.HashMap(), new mutable.HashMap())
@@ -33,13 +28,13 @@ object ChatData {
   def save(c: ChatData, file: File): Unit =
     file.text = encode(c)
 
-  implicit val chatDataEncoder: Encoder[ChatData] = (chatData: ChatData) =>
+  private implicit val chatDataEncoder: Encoder[ChatData] = (chatData: ChatData) =>
     Json.obj(
       "chats" := chatData.chats,
       "articles" := chatData.articles,
     )
 
-  implicit val chatDataDecoder: Decoder[ChatData] = (c: HCursor) =>
+  private implicit val chatDataDecoder: Decoder[ChatData] = (c: HCursor) =>
     for {
       chats <- c.get[mutable.HashMap[Long, Chat]]("chats")
       articles <- c.get[mutable.HashMap[Long, HabrArticle]]("articles")
@@ -51,61 +46,34 @@ object ChatData {
   }
 }
 
-class ChatData(private val chats: mutable.HashMap[Long, Chat],
-               private val articles: mutable.HashMap[Long, HabrArticle]) {
+class ChatData(val chats: mutable.HashMap[Long, Chat],
+               val articles: mutable.HashMap[Long, HabrArticle]) {
 
   private val log = LoggerFactory.getLogger(classOf[ChatData])
 
   def getChat(id: Long): Chat = chats.getOrElse(id, Chat.withDefaultSettings(id))
 
-  def updateChat(chatId: Long)(mapFunc: Chat => Chat): Unit =
+  def updateChat(chatId: Long)(mapFunc: Chat => Chat): Unit = {
     chats(chatId) = mapFunc(chats.getOrElse(chatId, Chat.withDefaultSettings(chatId)))
-
-  private def predicate(chat: Chat, article: HabrArticle): Boolean = {
-    def getMeanOrZero(numbers: Seq[Double]): Double =
-      if (numbers.isEmpty)
-        0
-      else
-        numbers.sum / numbers.size
-
-    val weight =
-      article.metrics.map(m => m.upVotes - m.downVotes).getOrElse(0) +
-        chat.filterSettings.authorWeights.getOrElse(article.author, 0.0) +
-        getMeanOrZero(article.categories.toSeq.map(chat.filterSettings.tagWeights.getOrElse(_, 0.0)))
-
-    weight >= chat.filterSettings.ratingThreshold
+    assert(chats(chatId).id == chatId)
   }
 
-  private def getSentArticlesUpdates(): Iterable[ChatData.Update] =
-    chats.values
-      .filter(_.filterSettings.updateAsSoonAsPossible)
-      .flatMap { chat =>
-        chat.sentArticles.values.flatMap { sentArticle =>
-          articles.get(sentArticle.articleId)
-            .filter(_.lastUpdateTime.after(sentArticle.sentDate))
-            .map(pc => ChatData.Update(chat, pc, Some(sentArticle.messageId)))
-        }
-      }
+  def getSentArticleUpdates(chatId: Long): Iterable[UpdateArticle] = {
+    val chat = getChat(chatId)
 
-  private def getNewArticlesUpdates(): Iterable[ChatData.Update] = {
-    chats.values
-      .filter(_.filterSettings.updateAsSoonAsPossible)
-      .flatMap { chat =>
-        articles.values
-          .filter(article => !chat.sentArticles.contains(article.id) && chat.filterSettings.isInteresting(article))
-          .map(article => ChatData.Update(chat, article, None))
-      }
+    chat.sentArticles.values.flatMap { sentArticle =>
+      articles.get(sentArticle.articleId)
+        .filter(_.lastUpdateTime.after(sentArticle.sentDate))
+        .map(pc => UpdateArticle(chatId, pc, Some(sentArticle.messageId)))
+    }
   }
 
-  def getUpdates(): Iterable[ChatData.Update] =
-    getSentArticlesUpdates() ++ getNewArticlesUpdates()
-
-  def getNewArticlesForChat(chatId: Long): Iterable[ChatData.Update] = {
+  def getNewArticles(chatId: Long): Iterable[UpdateArticle] = {
     val chat = getChat(chatId)
 
     articles.values
       .filter(article => !chat.sentArticles.contains(article.id) && chat.filterSettings.isInteresting(article))
-      .map(article => ChatData.Update(chat, article, None))
+      .map(article => UpdateArticle(chatId, article, None))
   }
 
   def updatePosts(posts: Seq[HabrArticle]): Unit =
@@ -118,15 +86,6 @@ class ChatData(private val chats: mutable.HashMap[Long, Chat],
       chat.copy(sentArticles = chat.sentArticles.updated(sentArticle.articleId, sentArticle))
     }
 
-  def getArticles: Vector[HabrArticle] =
-    articles.values.toVector
-
   override def toString: String =
     ChatData.encode(this)
-
-  def getStats(): Stats = Stats(
-    articlesCount = articles.size,
-    usersCount = chats.size,
-    subscribedUsersCount = chats.valuesIterator.count(_.filterSettings.updateAsSoonAsPossible)
-  )
 }

@@ -4,7 +4,7 @@ import java.util.Date
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.LibraryActorConfig
-import com.github.kright.habrareader.actors.TgBotActor.{ArticleEdit, ArticleReply, Reply}
+import com.github.kright.habrareader.actors.TgBotActor.Reply
 import com.github.kright.habrareader.models._
 import com.github.kright.habrareader.utils.SettingsRequestParser.{Command, CommandDouble, CommandStringDouble}
 import com.github.kright.habrareader.utils.{DateUtils, SavesDir}
@@ -26,17 +26,9 @@ object LibraryActor {
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
 
-  final case class Stats(articlesCount: Int, usersCount: Int, subscribedUsersCount: Int) {
-    def formatForTg: String =
-      s"""articles: <b>$articlesCount</b>
-         |users: <b>$usersCount</b>
-         |subscribed users: <b>$subscribedUsersCount</b>
-      """.stripMargin
-  }
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
-  // todo test loading data from jsons
   import LibraryActor._
 
   val savesDir = new SavesDir(config.savesDir)
@@ -101,9 +93,9 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     case RequestUpdates(chatId) =>
       requestUpdates(chatId, sender)
     case GetArticles =>
-      sender ! AllArticles(chatData.getArticles)
+      sender ! AllArticles(chatData.articles.values.toVector)
     case GetStats(chatId) =>
-      sender ! Reply(chatId, chatData.getStats().formatForTg)
+      sender ! Reply(chatId, getStatsMsg)
   }
 
   private def saveState(): Unit = {
@@ -112,24 +104,22 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     ChatData.save(chatData, dest)
   }
 
-  private def processNewPostSending(tgBot: ActorRef): Unit = {
-    chatData.getUpdates().foreach {
-      case ChatData.Update(chat, post, None) =>
-        tgBot ! ArticleReply(chat.id, post)
-      case ChatData.Update(chat, post, Some(prevMessageId)) =>
-        tgBot ! ArticleEdit(chat.id, prevMessageId, post)
+  private def getStatsMsg: String =
+    s"""articles: <b>${chatData.articles.size}</b>
+       |users: <b>${chatData.chats.size}</b>
+       |subscribed users: <b>${chatData.chats.values.count(_.filterSettings.updateAsSoonAsPossible)}</b>
+      """.stripMargin
+
+  private def processNewPostSending(tgBot: ActorRef): Unit =
+    for ((id, chat) <- chatData.chats if chat.filterSettings.updateAsSoonAsPossible) {
+      chatData.getNewArticles(id).foreach(tgBot ! _)
+      chatData.getSentArticleUpdates(id).foreach(tgBot ! _)
     }
-  }
 
   private def requestUpdates(chatId: Long, tgBot: ActorRef): Unit = {
-    val updates = chatData.getNewArticlesForChat(chatId).view.take(3)
+    val updates = chatData.getNewArticles(chatId)
 
-    updates.foreach {
-      case ChatData.Update(chat, post, None) =>
-        tgBot ! ArticleReply(chat.id, post)
-      case ChatData.Update(chat, post, Some(prevMessageId)) =>
-        tgBot ! ArticleEdit(chat.id, prevMessageId, post)
-    }
+    updates.view.take(3).foreach(tgBot ! _)
 
     if (updates.isEmpty) {
       tgBot ! Reply(chatId, "no new articles :(")
