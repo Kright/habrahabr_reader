@@ -51,7 +51,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
         val updated = HabrArticlesDownloader.downloadArticle(article.link, article.publicationDate)
         library ! UpdateArticles(List(updated))
       }.failed.foreach{ ex =>
-        log.error(s"can't download article ${article.link}: ${ex}")
+        log.error(s"can't download article ${article.link}: ${ex}, ${ex.getStackTrace.mkString("\n", "\n", "\n")}")
       }
     }
   }
