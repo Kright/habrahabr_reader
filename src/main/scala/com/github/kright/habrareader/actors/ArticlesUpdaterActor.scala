@@ -10,6 +10,7 @@ import com.github.kright.habrareader.utils.DateUtils
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 
 object ArticlesUpdaterActor {
@@ -30,7 +31,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
 
   override def receive: Receive = {
     case SearchNewArticles => searchNewArticles()
-    case AllArticles(articles) => updateOldestArticles(articles.toVector, 30)
+    case AllArticles(articles) => updateOldestArticles(articles.toVector, 30, sender)
   }
 
   def searchNewArticles(): Unit = {
@@ -41,17 +42,17 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
     library ! LibraryActor.UpdateArticles(habrArticles)
   }
 
-  def updateOldestArticles(articles: Vector[HabrArticle], maxCount: Int): Unit = {
+  def updateOldestArticles(articles: Vector[HabrArticle], maxCount: Int, library: ActorRef): Unit = Future {
     val threshold = DateUtils.currentDate.getTime - 3.days.toMillis
-
-    val oldest = articles.filter(_.lastUpdateTime.getTime > threshold).sortBy(_.lastUpdateTime.getTime).take(maxCount)
+    val oldest = articles.filter(_.publicationDate.getTime > threshold).sortBy(_.lastUpdateTime.getTime).take(maxCount)
 
     oldest.foreach { article =>
-      Future {
-        val updated = HabrArticlesDownloader.downloadArticle(article.link, article.publicationDate)
-        library ! UpdateArticles(List(updated))
-      }.failed.foreach{ ex =>
-        log.error(s"can't download article ${article.link}: ${ex}, ${ex.getStackTrace.mkString("\n", "\n", "\n")}")
+      Try(HabrArticlesDownloader.downloadArticle(article.link, article.publicationDate)) match {
+        case Failure(ex) =>
+          log.error(s"can't download article ${article.link}: ${ex} ${ex.getStackTrace.mkString("\n")}")
+        case Success(updatedArticle) =>
+          log.info(s"article updated: ${updatedArticle.link}")
+          library ! UpdateArticles(Seq(updatedArticle))
       }
     }
   }

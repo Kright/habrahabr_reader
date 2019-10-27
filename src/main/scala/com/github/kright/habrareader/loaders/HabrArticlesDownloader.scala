@@ -122,6 +122,4 @@ object HabrArticlesDownloader {
   def getArticles(): Seq[HabrArticle] =
     downloadRSSArticles.map { imprint =>
       Try{downloadArticle(imprint.link, imprint.publicationDate)} }.collect { case Success(s) => s }
-
-  def update(link: String, pubDate: Date): HabrArticle = downloadArticle(link, pubDate)
 }
