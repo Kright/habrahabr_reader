@@ -12,7 +12,7 @@ import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
-import LibraryActor._
+import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.models.{Chat, FilterSettings, HabrArticle, SentArticle}
 import com.github.kright.habrareader.utils.SettingsRequestParser.{Command, CommandDouble, CommandStringDouble}
 
@@ -53,11 +53,13 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
     case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
     case SendMessageToTg(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
     case UpdateArticle(chatId, article, None) =>
-      bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
-        .map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, article.id, article.lastUpdateTime)))
+      val sent = bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
+      sent.failed.foreach( ex =>log.error("can't send info about new article $ex"))
+      sent.map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, article.id, article.lastUpdateTime))) // todo read about pipeTo
         .pipeTo(sender)
     case UpdateArticle(chatId, article, Some(messageId)) =>
-      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML) ))
+      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML)))
+        .failed.foreach ( ex => log.error(s"can't update existing message $ex"))
     case msg: RequestUpdates => library ! msg
     case msg: UpdateChat => library ! msg
     case msg: GetStats => library ! msg
@@ -138,10 +140,11 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
          |/reset - reset all weights to default
          |/author name weight
          |/tag name weight
+         |example: '/tag scala +10'
          |/rating thresholdValue
          |
-         |example: '/tag scala +10'
-      """.stripMargin, Option(ParseMode.Markdown)).void
+         |repo: https://github.com/Kright/habrahabr_reader
+      """.stripMargin).void
   }
 }
 
