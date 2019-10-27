@@ -37,6 +37,9 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
   override def preStart(): Unit = {
     context.system.scheduler.schedule(config.chatsUpdateInterval, config.chatsUpdateInterval, library, RequestUpdatesForAll(config.updateExistingMessages))
     bot.run()
+    config.admins.foreach { chatId =>
+      self ! SendMessageToTg(chatId, "bot started!")
+    }
   }
 
   private def formMessage(article: HabrArticle): String =
@@ -51,15 +54,27 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 
   override def receive: Receive = {
     case GetSettings(chatId) => library ! LibraryActor.GetSettings(chatId)
-    case SendMessageToTg(chatId, msg) => bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
+    case SendMessageToTg(chatId, msg) =>
+      val sent = bot.request(SendMessage(chatId, msg, parseMode = Some(ParseMode.HTML)))
+      sent.failed.foreach { ex =>
+        log.error(s"can't send message: $ex")
+        if (ex.getMessage == "Error 403 on request") {
+          log.error(s"can't send message to $chatId: $ex, '${ex.getMessage}', so unsubscribe this user")
+          library ! UpdateChat(chatId, chat =>
+            chat.copy(filterSettings = chat.filterSettings.copy(updateAsSoonAsPossible = false))
+          )
+        }
+      }
     case UpdateArticle(chatId, article, None) =>
       val sent = bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
-      sent.failed.foreach( ex =>log.error("can't send info about new article $ex"))
+      sent.failed.foreach { ex =>
+        log.error(s"can't send info about new article $ex")
+      }
       sent.map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, article.id, article.lastUpdateTime))) // todo read about pipeTo
         .pipeTo(sender)
     case UpdateArticle(chatId, article, Some(messageId)) =>
       bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML)))
-        .failed.foreach ( ex => log.error(s"can't update existing message $ex"))
+        .failed.foreach(ex => log.error(s"can't update existing message $ex"))
     case msg: RequestUpdates => library ! msg
     case msg: UpdateChat => library ! msg
     case msg: GetStats => library ! msg

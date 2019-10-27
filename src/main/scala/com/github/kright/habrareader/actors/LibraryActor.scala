@@ -89,7 +89,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       if (chat.filterSettings.updateAsSoonAsPossible) {
         chatData.getNewArticles(id).foreach(tgBot ! _)
       }
-      if (updateExistingMessages) {
+      if (chat.filterSettings.updateAsSoonAsPossible && updateExistingMessages) {
         chatData.getSentArticleUpdates(id).foreach(tgBot ! _)
       }
     }

@@ -1,11 +1,10 @@
 package com.github.kright.habrareader.loaders
 
+import java.nio.charset.{Charset, CodingErrorAction}
 import java.text.SimpleDateFormat
 import java.util.{Date, Locale, TimeZone}
 
 import com.github.kright.habrareader.Implicits._
-import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
-import com.github.kright.habrareader.utils.DateUtils
 import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
 import com.github.kright.habrareader.utils.DateUtils
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
@@ -13,15 +12,16 @@ import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import net.ruippeixotog.scalascraper.scraper.ContentExtractors.{element, elementList}
 
-import scala.io.Source
+import scala.io.{Codec, Source}
 import scala.util.{Success, Try}
 import scala.xml.XML
 
 
 object HabrArticlesDownloader {
   private val rssURI = "https://habr.com/ru/rss/all/all/"
+  private val codec = Codec(Charset.forName("UTF-8")).onMalformedInput(CodingErrorAction.IGNORE)
 
-  private def getTextFromUrl(url: String): String = Source.fromURL(url).use(_.getLines().mkString("\n"))
+  private def getTextFromUrl(url: String): String = Source.fromURL(url)(codec).use(_.getLines().mkString("\n"))
 
   /** may block thread or throw exceptions */
   def downloadRSSArticles: Seq[HabrArticle] = parseRss(getTextFromUrl(rssURI))
