@@ -1,9 +1,8 @@
 package com.github.kright.habrareader.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.pipe
 import com.github.kright.habrareader.AppConfig.ArticlesUpdaterConfig
-import com.github.kright.habrareader.actors.LibraryActor.{AllArticles, GetArticles}
+import com.github.kright.habrareader.actors.LibraryActor.{AllArticles, GetArticles, UpdateArticles}
 import com.github.kright.habrareader.loaders.HabrArticlesDownloader
 import com.github.kright.habrareader.models.HabrArticle
 import com.github.kright.habrareader.utils.DateUtils
@@ -50,8 +49,10 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
     oldest.foreach { article =>
       Future {
         val updated = HabrArticlesDownloader.downloadArticle(article.link, article.publicationDate)
-        LibraryActor.UpdateArticles(List(updated))
-      } pipeTo library
+        library ! UpdateArticles(List(updated))
+      }.failed.foreach{ ex =>
+        log.error(s"can't download article ${article.link}: ${ex}")
+      }
     }
   }
 }
