@@ -49,7 +49,7 @@ class HabrArticlesDownloaderTest extends FunSuite {
 
   test("testHtmlParse") {
     val file = new File(getClass.getClassLoader.getResource("habr_en.html").getFile)
-    val article = HabrArticlesDownloader.parseHtml(file.text, DateUtils.currentDate)
+    val article = HabrArticlesDownloader.parseHtml(file.text, DateUtils.now)
 
     assert(article.id == 462783)
     assert(article.link == "https://habr.com/ru/company/parallels/blog/462783/")
@@ -70,7 +70,7 @@ class HabrArticlesDownloaderTest extends FunSuite {
   test("testMalfornedHtmlParse") {
     val file = new File(getClass.getClassLoader.getResource("malformedUtf8Article").getFile)
     val text = file.text( Codec(Charset.forName("UTF-8")).onMalformedInput(CodingErrorAction.IGNORE))
-    val article = HabrArticlesDownloader.parseHtml(text, DateUtils.currentDate)
+    val article = HabrArticlesDownloader.parseHtml(text, DateUtils.now)
 
     assert(article.id == 472278)
     assert(article.link == "https://habr.com/ru/company/flant/blog/472278/")

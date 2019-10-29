@@ -11,7 +11,7 @@ import io.circe.syntax._
 case class Chat(id: Long,
                 lastUpdateDate: Date,
                 filterSettings: FilterSettings,
-                sentArticles: Map[Long, SentArticle] = Map.empty) {
+                sentArticles: Map[Int, SentArticle] = Map.empty) {
 
   private def prettyMap(map: Map[String, Double]): String =
     if (map.nonEmpty)
@@ -29,7 +29,7 @@ case class Chat(id: Long,
 
 object Chat {
   def withDefaultSettings(id: Long) =
-    Chat(id, DateUtils.currentDate, filterSettings = FilterSettings(ratingThreshold = 20.0))
+    Chat(id, DateUtils.now, filterSettings = FilterSettings(ratingThreshold = 20.0))
 
   implicit val encoder: Encoder[Chat] = (chat: Chat) =>
     Json.obj(
@@ -44,7 +44,7 @@ object Chat {
       id <- c.get[Long]("id")
       lastUpdateDate <- c.get[Date]("lastUpdateDate")
       filterSettings <- c.get[FilterSettings]("filterSettings")
-      sentPosts <- c.get[Map[Long, SentArticle]]("sentPosts")
+      sentPosts <- c.get[Map[Int, SentArticle]]("sentPosts")
     } yield Chat(id, lastUpdateDate, filterSettings, sentPosts)
   }
 }

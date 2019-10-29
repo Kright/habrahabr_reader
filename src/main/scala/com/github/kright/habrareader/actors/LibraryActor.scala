@@ -43,7 +43,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
-  var chatDataLastTime: Date = DateUtils.currentDate
+  var chatDataLastTime: Date = DateUtils.now
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState)
@@ -61,6 +61,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     case PostWasSentToTg(chatId, sentArticle) =>
       chatData.addSentArticle(chatId, sentArticle)
     case SaveState =>
+      rmOldArticles()
       saveState()
     case RequestUpdates(chatId) =>
       requestUpdates(chatId, sender)
@@ -72,8 +73,23 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       log.error(s"unknown message: $unknownMessage")
   }
 
+  private def rmOldArticles(): Unit = {
+    val threshold = DateUtils.now.getTime - config.timeBeforeRmOldArticles.toMillis
+    rmArticles(chatData.articles.values.filter(_.publicationDate.getTime < threshold).map(_.id).toSeq)
+  }
+
+  private def rmArticles(idsToRm: Seq[Int]) = {
+    chatData.articles --= idsToRm
+
+    chatData.chats.keys.foreach{ id =>
+      chatData.updateChat(id){ chat =>
+        chat.copy(sentArticles = chat.sentArticles -- idsToRm)
+      }
+    }
+  }
+
   private def saveState(): Unit = {
-    val dest = savesDir.newSave(DateUtils.currentDate)
+    val dest = savesDir.newSave(DateUtils.now)
     dest.getParentFile.mkdirs()
     ChatData.save(chatData, dest)
   }

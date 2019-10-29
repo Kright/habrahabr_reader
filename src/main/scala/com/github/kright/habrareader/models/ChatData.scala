@@ -37,7 +37,7 @@ object ChatData {
   private implicit val chatDataDecoder: Decoder[ChatData] = (c: HCursor) =>
     for {
       chats <- c.get[mutable.HashMap[Long, Chat]]("chats")
-      articles <- c.get[mutable.HashMap[Long, HabrArticle]]("articles")
+      articles <- c.get[mutable.HashMap[Int, HabrArticle]]("articles")
     } yield new ChatData(chats, articles)
 
   implicit val chatDataEq = new Eq[ChatData] {
@@ -47,7 +47,7 @@ object ChatData {
 }
 
 class ChatData(val chats: mutable.HashMap[Long, Chat],
-               val articles: mutable.HashMap[Long, HabrArticle]) {
+               val articles: mutable.HashMap[Int, HabrArticle]) {
 
   private val log = LoggerFactory.getLogger(classOf[ChatData])
 

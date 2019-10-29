@@ -45,7 +45,7 @@ object HabrArticlesDownloader {
         categories = (item \ "category").map(_.text).toSet,
         metrics = None,
         publicationDate = parseDate((item \ "pubDate").text),
-        lastUpdateTime = DateUtils.currentDate,
+        lastUpdateTime = DateUtils.now,
       )
     }
   }
@@ -109,7 +109,7 @@ object HabrArticlesDownloader {
         bookmarksCount = addedToBookmarks
       )),
       publicationDate = pubDate,
-      lastUpdateTime = DateUtils.currentDate
+      lastUpdateTime = DateUtils.now
     )
   }
 

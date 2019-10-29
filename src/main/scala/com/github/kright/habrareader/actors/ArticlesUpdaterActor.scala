@@ -35,7 +35,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
   }
 
   def searchNewArticles(): Unit = {
-    val now = DateUtils.currentDate
+    val now = DateUtils.now
     val habrArticles = HabrArticlesDownloader.getArticles()
 
     log.debug(s"add new articles: ${habrArticles.map(_.title).mkString("[", ", ", "]")}")
@@ -43,7 +43,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
   }
 
   def updateOldestArticles(articles: Vector[HabrArticle], maxCount: Int, library: ActorRef): Unit = Future {
-    val threshold = DateUtils.currentDate.getTime - 3.days.toMillis
+    val threshold = DateUtils.now.getTime - 3.days.toMillis
     val oldest = articles.filter(_.publicationDate.getTime > threshold).sortBy(_.lastUpdateTime.getTime).take(maxCount)
 
     oldest.foreach { article =>

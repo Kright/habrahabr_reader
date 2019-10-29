@@ -25,7 +25,7 @@ class ChatDataTest extends FunSuite {
 
   test("testEncodeAndDecoder") {
     val chats = new mutable.HashMap[Long, Chat]()
-    val articles = new mutable.HashMap[Long, HabrArticle]()
+    val articles = new mutable.HashMap[Int, HabrArticle]()
 
     chats(1) = Chat.withDefaultSettings(1)
     chats(2) = Chat.withDefaultSettings(2)
@@ -43,8 +43,8 @@ class ChatDataTest extends FunSuite {
         viewsCount = 3,
         commentsCount = 4,
         bookmarksCount = 5)),
-      publicationDate = DateUtils.currentDate,
-      lastUpdateTime = DateUtils.currentDate,
+      publicationDate = DateUtils.now,
+      lastUpdateTime = DateUtils.now,
     )
 
     checkConsistency(new ChatData(chats, articles))

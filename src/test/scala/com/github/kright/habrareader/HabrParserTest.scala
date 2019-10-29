@@ -15,7 +15,8 @@ class ExternalSuite extends FunSuite {
   test("html parsing") {
     // Malformed input for articles:
     // https://habr.com/ru/post/465703/
-    val article = HabrArticlesDownloader.downloadArticle("https://habr.com/ru/post/465703/", DateUtils.yesterday)
+    // todo test this
+    val article = HabrArticlesDownloader.downloadArticle("https://habr.com/ru/post/465703/", DateUtils.now)
     println(article)
   }
 
