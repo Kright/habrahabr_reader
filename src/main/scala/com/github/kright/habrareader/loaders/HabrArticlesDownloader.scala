@@ -37,7 +37,7 @@ object HabrArticlesDownloader {
       val link = (item \ "guid").text
 
       HabrArticle(
-        id = link.split("/")(5).toInt,
+        id = extractId(link),
         link = link,
         title = (item \ "title").text,
         description = (item \ "description").text,
@@ -69,7 +69,7 @@ object HabrArticlesDownloader {
       attrs.get("property").contains("og:url")
     }.map(_ ("content")).getOrElse("")
 
-    val id: Int = link.split("/").filter(_.nonEmpty).last.toInt
+    val id: Int = extractId(link)
     val author: String = doc >> text(".post__meta .user-info__nickname")
 
     val views: Int = {
@@ -122,4 +122,7 @@ object HabrArticlesDownloader {
   def getArticles(): Seq[HabrArticle] =
     downloadRSSArticles.map { imprint =>
       Try{downloadArticle(imprint.link, imprint.publicationDate)} }.collect { case Success(s) => s }
+
+  private def extractId(link: String): Int =
+    link.split("/").filter(_.nonEmpty).last.toInt
 }
