@@ -52,6 +52,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   override def receive: Receive = {
     case UpdateChat(chatId, updater) =>
       chatData.updateChat(chatId)(updater)
+      sender ! SendMessageToTg(chatId, "ok")
     case GetSettings(chatId) =>
       sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsPrettify)
     case RequestUpdatesForAll(updateExistingMessages) =>
