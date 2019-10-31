@@ -6,19 +6,19 @@ import org.scalatest.FunSuite
 import scala.collection.mutable
 
 
-class ChatDataTest extends FunSuite {
+class StateTest extends FunSuite {
 
-  def checkConsistency(initial: ChatData) = {
-    val encoded1 = ChatData.encode(initial)
-    val decoded = ChatData.decode(encoded1)
-    val encoded2 = ChatData.encode(decoded)
+  def checkConsistency(initial: State) = {
+    val encoded1 = State.encode(initial)
+    val decoded = State.decode(encoded1)
+    val encoded2 = State.encode(decoded)
 
     assert(encoded1 == encoded2)
-    assert(ChatData.chatDataEq.eqv(decoded, initial), s"$decoded != $initial")
+    assert(State.chatDataEq.eqv(decoded, initial), s"$decoded != $initial")
   }
 
   test("testEncodeAndDecodeEmpty") {
-    val empty = ChatData.empty()
+    val empty = State.empty()
 
     checkConsistency(empty)
   }
@@ -47,7 +47,7 @@ class ChatDataTest extends FunSuite {
       lastUpdateTime = DateUtils.now,
     )
 
-    checkConsistency(new ChatData(chats, articles))
+    checkConsistency(new State(chats, articles))
   }
 
 }

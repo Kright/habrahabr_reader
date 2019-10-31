@@ -11,45 +11,45 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
-object ChatData {
+object State {
 
-  def empty(): ChatData =
-    new ChatData(new mutable.HashMap(), new mutable.HashMap())
+  def empty(): State =
+    new State(new mutable.HashMap(), new mutable.HashMap())
 
-  def decode(s: String): ChatData =
-    io.circe.parser.decode[ChatData](s).right.get
+  def decode(s: String): State =
+    io.circe.parser.decode[State](s).right.get
 
-  def encode(c: ChatData): String =
+  def encode(c: State): String =
     c.asJson.toString()
 
-  def load(file: File): ChatData =
+  def load(file: File): State =
     decode(file.text)
 
-  def save(c: ChatData, file: File): Unit =
+  def save(c: State, file: File): Unit =
     file.text = encode(c)
 
-  private implicit val chatDataEncoder: Encoder[ChatData] = (chatData: ChatData) =>
+  private implicit val chatDataEncoder: Encoder[State] = (chatData: State) =>
     Json.obj(
       "chats" := chatData.chats,
       "articles" := chatData.articles,
     )
 
-  private implicit val chatDataDecoder: Decoder[ChatData] = (c: HCursor) =>
+  private implicit val chatDataDecoder: Decoder[State] = (c: HCursor) =>
     for {
       chats <- c.get[mutable.HashMap[Long, Chat]]("chats")
       articles <- c.get[mutable.HashMap[Int, HabrArticle]]("articles")
-    } yield new ChatData(chats, articles)
+    } yield new State(chats, articles)
 
-  implicit val chatDataEq = new Eq[ChatData] {
-    override def eqv(x: ChatData, y: ChatData): Boolean =
+  implicit val chatDataEq = new Eq[State] {
+    override def eqv(x: State, y: State): Boolean =
       x.articles == y.articles && x.chats == y.chats
   }
 }
 
-class ChatData(val chats: mutable.HashMap[Long, Chat],
-               val articles: mutable.HashMap[Int, HabrArticle]) {
+class State(val chats: mutable.HashMap[Long, Chat],
+            val articles: mutable.HashMap[Int, HabrArticle]) {
 
-  private val log = LoggerFactory.getLogger(classOf[ChatData])
+  private val log = LoggerFactory.getLogger(classOf[State])
 
   def getChat(id: Long): Chat = chats.getOrElse(id, Chat.withDefaultSettings(id))
 
@@ -87,5 +87,5 @@ class ChatData(val chats: mutable.HashMap[Long, Chat],
     }
 
   override def toString: String =
-    ChatData.encode(this)
+    State.encode(this)
 }

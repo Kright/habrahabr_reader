@@ -23,6 +23,7 @@ object AppConfig {
   final case class LibraryActorConfig(stateSaveIntervalSeconds: Int, savesDir: String, daysBeforeRmOldArticles: Int) {
     def stateSaveInterval: FiniteDuration = stateSaveIntervalSeconds.seconds
     def timeBeforeRmOldArticles: FiniteDuration = daysBeforeRmOldArticles.days
+      def xz = daysBeforeRmOldArticles.days.fromNow
   }
 
   def apply(): AppConfig = config

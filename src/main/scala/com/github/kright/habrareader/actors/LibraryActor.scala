@@ -35,10 +35,10 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   val chatData =
     savesDir.loadLast().map{ file =>
       log.info(s"load previous state from ${file.getAbsolutePath}")
-      ChatData.load(file)
+      State.load(file)
     }.getOrElse{
       log.info(s"previous save wasn't found, use empty")
-      ChatData.empty()
+      State.empty()
     }
 
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
@@ -91,7 +91,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   private def saveState(): Unit = {
     val dest = savesDir.newSave(DateUtils.now)
     dest.getParentFile.mkdirs()
-    ChatData.save(chatData, dest)
+    State.save(chatData, dest)
   }
 
   private def getStatsMsg: String =
