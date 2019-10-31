@@ -4,6 +4,5 @@ object TextNormalization {
 
   def normalize(s: String): String =
     s.toLowerCase
-      .replace('.', '_')
-      .replace(' ', '_')
+    .map(c => if (c.isLetterOrDigit) c else '_')
 }

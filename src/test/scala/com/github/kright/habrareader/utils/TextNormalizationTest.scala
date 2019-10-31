@@ -10,5 +10,6 @@ class TextNormalizationTest extends FunSuite {
     assert(normalize("lOwEr") == "lower")
     assert(normalize("author name") == "author_name")
     assert(normalize("tag4.1") == "tag4_1")
+    assert(normalize("a&b") == "a_b")
   }
 }
