@@ -20,8 +20,8 @@ object AppConfig {
   final case class ArticlesUpdaterConfig(searchNewArticlesIntervalSeconds: Int,
                                          articlesUpdateIntervalSeconds: Int)
 
-  final case class LibraryActorConfig(stateSaveIntervalSeconds: Int, savesDir: String, daysBeforeRmOldArticles: Int) {
-    def stateSaveInterval: FiniteDuration = stateSaveIntervalSeconds.seconds
+  final case class LibraryActorConfig(stateSaveIntervalMinutes: Int, savesDir: String, daysBeforeRmOldArticles: Int) {
+    def stateSaveInterval: FiniteDuration = stateSaveIntervalMinutes.minutes
     def timeBeforeRmOldArticles: FiniteDuration = daysBeforeRmOldArticles.days
       def xz = daysBeforeRmOldArticles.days.fromNow
   }
