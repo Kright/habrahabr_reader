@@ -22,7 +22,6 @@ import scala.concurrent.{ExecutionContext, Future}
 object TgBotActor {
   def props(config: TgBotActorConfig, library: ActorRef) = Props(new TgBotActor(config, library))
 
-  final case class GetSettings(chatId: Long)
   final case class SendMessageToTg(chatId: Long, msg: String)
   final case class UpdateArticle(chatId: Long, article: HabrArticle, messageId: Option[Int])
 }

@@ -19,12 +19,11 @@ object LibraryActor {
   final case class UpdateChat(chatId: Long, updater: Chat => Chat)
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
-  final case class UpdateArticles(articles: Seq[HabrArticle])
+  final case class UpdateArticle(articles: HabrArticle)
   final case object SaveState
   final case class GetStats(chatId: Long)
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
-
 }
 
 class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
@@ -57,8 +56,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsPrettify)
     case RequestUpdatesForAll(updateExistingMessages) =>
       processNewPostSending(sender, updateExistingMessages)
-    case UpdateArticles(articles) =>
-      chatData.updateArticles(articles)
+    case UpdateArticle(article) =>
+      chatData.updateArticle(article)
     case PostWasSentToTg(chatId, sentArticle) =>
       chatData.addSentArticle(chatId, sentArticle)
     case SaveState =>

@@ -1,8 +1,10 @@
 package com.github.kright.habrareader.actors
 
+import java.net.UnknownHostException
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.ArticlesUpdaterConfig
-import com.github.kright.habrareader.actors.LibraryActor.{AllArticles, GetArticles, UpdateArticles}
+import com.github.kright.habrareader.actors.LibraryActor.{AllArticles, GetArticles, UpdateArticle}
 import com.github.kright.habrareader.loaders.HabrArticlesDownloader
 import com.github.kright.habrareader.models.HabrArticle
 import com.github.kright.habrareader.utils.DateUtils
@@ -34,26 +36,40 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
     case AllArticles(articles) => updateOldestArticles(articles.toVector, 30, sender)
   }
 
-  def searchNewArticles(): Unit = {
-    val now = DateUtils.now
-    val habrArticles = HabrArticlesDownloader.getArticles()
+  private def doSafe[T](func: => T, default: => T, handleException: Throwable => Unit): T =
+    Try(func) match {
+      case Success(result) =>
+        result
+      case Failure(exception) =>
+        handleException(exception)
+        default
+    }
 
-    log.debug(s"add new articles: ${habrArticles.map(_.title).mkString("[", ", ", "]")}")
-    library ! LibraryActor.UpdateArticles(habrArticles)
+  private def logException(text: String, printTrace: Throwable => Boolean = _ => true): Throwable => Unit =
+    ex => log.error(s"$text $ex ${if (printTrace(ex)) ex.getStackTrace.mkString("\n") else ""}")
+
+  private def isInterestingException: Throwable => Boolean = {
+    case _: UnknownHostException => false
+    case _ => true
+  }
+
+  def searchNewArticles(): Unit = {
+    for {
+      rssArticle <- doSafe(HabrArticlesDownloader.downloadRSSArticles, Seq(), logException("can't download rss articles", isInterestingException))
+      article <- doSafe(Option(HabrArticlesDownloader.downloadArticle(rssArticle.link, rssArticle.publicationDate)), None, logException("can't download article", isInterestingException))
+    } {
+      log.info(s"add new article: ${article.link}")
+      library ! UpdateArticle(article)
+    }
   }
 
   def updateOldestArticles(articles: Vector[HabrArticle], maxCount: Int, library: ActorRef): Unit = Future {
     val threshold = DateUtils.now.getTime - 3.days.toMillis
-    val oldest = articles.filter(_.publicationDate.getTime > threshold).sortBy(_.lastUpdateTime.getTime).take(maxCount)
-
-    oldest.foreach { article =>
-      Try(HabrArticlesDownloader.downloadArticle(article.link, article.publicationDate)) match {
-        case Failure(ex) =>
-          log.error(s"can't download article ${article.link}: ${ex} ${ex.getStackTrace.mkString("\n")}")
-        case Success(updatedArticle) =>
-          log.info(s"article updated: ${updatedArticle.link}")
-          library ! UpdateArticles(Seq(updatedArticle))
-      }
+    for {
+      article <- articles.filter(_.publicationDate.getTime > threshold).sortBy(_.lastUpdateTime.getTime).take(maxCount)
+      updatedArticle <- doSafe(Option(HabrArticlesDownloader.downloadArticle(article.link, article.publicationDate)), None, logException(s"can't update article ${article.link}", isInterestingException))
+    } {
+      library ! UpdateArticle(updatedArticle)
     }
   }
 }

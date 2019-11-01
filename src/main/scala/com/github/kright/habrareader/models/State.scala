@@ -76,10 +76,8 @@ class State(val chats: mutable.HashMap[Long, Chat],
       .map(article => UpdateArticle(chatId, article, None))
   }
 
-  def updateArticles(newArticles: Seq[HabrArticle]): Unit =
-    newArticles.foreach { article =>
-      articles(article.id) = article
-    }
+  def updateArticle(newArticle: HabrArticle): Unit =
+      articles(newArticle.id) = newArticle
 
   def addSentArticle(chatId: Long, sentArticle: SentArticle): Unit =
     updateChat(chatId) { chat =>
