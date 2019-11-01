@@ -20,7 +20,7 @@ object LibraryActor {
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
   final case class UpdateArticle(articles: HabrArticle)
-  final case object SaveState
+  final case class SaveState(chatId: Long)
   final case class GetStats(chatId: Long)
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
@@ -60,9 +60,10 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       chatData.updateArticle(article)
     case PostWasSentToTg(chatId, sentArticle) =>
       chatData.addSentArticle(chatId, sentArticle)
-    case SaveState =>
+    case SaveState(chatId) =>
       rmOldArticles()
       saveState()
+      sender ! SendMessageToTg(chatId, "saved!")
     case RequestUpdates(chatId) =>
       requestUpdates(chatId, sender)
     case GetArticles =>

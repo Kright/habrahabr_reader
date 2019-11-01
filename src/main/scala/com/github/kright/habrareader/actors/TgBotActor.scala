@@ -11,6 +11,7 @@ import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
+import com.bot4s.telegram.models.Message
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.models.{Chat, FilterSettings, HabrArticle, SentArticle}
@@ -121,26 +122,16 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
     }
   }
 
-  onCommand('new) { msg =>
-    Future {
-      observer ! RequestUpdates(msg.chat.id)
-    }
+  onAdminCommand('save) { msg =>
+    observer ! SaveState(msg.chat.id)
   }
 
-  onCommand('save) { msg =>
-    Future {
-      if (admins.contains(msg.chat.id)) {
-        observer ! SaveState
-      }
-    }
+  onAdminCommand('stats) { msg =>
+    observer ! GetStats(msg.chat.id)
   }
 
-  onCommand('stats) { msg =>
-    Future {
-      if (admins.contains(msg.chat.id)) {
-        observer ! GetStats(msg.chat.id)
-      }
-    }
+  onAdminCommand('new) { msg =>
+    observer ! RequestUpdates(msg.chat.id)
   }
 
   onCommand('start | 'help) { implicit msg =>
@@ -160,6 +151,15 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
          |repo: https://github.com/Kright/habrahabr_reader
       """.stripMargin).void
   }
+
+  def onAdminCommand(s: Symbol)(action: Message => Unit): Unit =
+    onCommand(s) { msg =>
+      Future {
+        if (admins.contains(msg.chat.id)) {
+          action(msg)
+        }
+      }
+    }
 }
 
 object ObservableTgBot {
