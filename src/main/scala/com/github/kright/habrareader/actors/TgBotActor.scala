@@ -102,6 +102,12 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
       def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
         chat => chat.copy(filterSettings = updater(chat.filterSettings))
 
+      def updateWeight(w: Map[String, Double], key: String, value: Double): Map[String, Double] =
+        if (value == 0.0)
+          w - key
+        else
+          w.updated(key, value)
+
       cmd match {
         case Command("/reset") =>
           observer ! UpdateChat(chatId, _ => Chat.withDefaultSettings(chatId))
@@ -111,9 +117,9 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
         case Command("/unsubscribe") =>
           observer ! UpdateChat(chatId, updateSettings(settings => settings.copy(updateAsSoonAsPossible = false)))
         case CommandStringDouble("/author", name, weight) =>
-          observer ! UpdateChat(chatId, updateSettings(s => s.copy(authorWeights = s.authorWeights.updated(name, weight))))
+          observer ! UpdateChat(chatId, updateSettings(s => s.copy(authorWeights = updateWeight(s.authorWeights, name, weight))))
         case CommandStringDouble("/tag", name, weight) =>
-          observer ! UpdateChat(chatId, updateSettings(s => s.copy(tagWeights = s.tagWeights.updated(name, weight))))
+          observer ! UpdateChat(chatId, updateSettings(s => s.copy(tagWeights = updateWeight(s.tagWeights, name, weight))))
         case CommandDouble("/rating", ratingThreshold) =>
           observer ! UpdateChat(chatId, updateSettings(s => s.copy(ratingThreshold = ratingThreshold)))
         case _ =>
