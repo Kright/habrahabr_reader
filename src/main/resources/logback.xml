@@ -8,7 +8,7 @@
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
         <file>Logs.log</file>
-        <append>true</append>
+        <append>false</append>
         <encoder>
             <pattern>%d{dd.MM.yyyy_HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
