@@ -78,7 +78,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
     case msg: RequestUpdates => library ! msg
     case msg: UpdateChat => library ! msg
     case msg: GetStats => library ! msg
-    case SaveState => library ! SaveState
+    case msg: SaveState => library ! msg
     case unknownMessage => log.error(s"unknown message: $unknownMessage")
   }
 }
