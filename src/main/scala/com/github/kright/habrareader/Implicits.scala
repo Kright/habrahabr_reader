@@ -1,8 +1,8 @@
-package com.github.awant.habrareader
+package com.github.kright.habrareader
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import scala.io.Source
+import scala.io.{Codec, Source}
 import scala.util.{Failure, Success, Try}
 
 object Implicits {
@@ -22,7 +22,7 @@ object Implicits {
   }
 
   implicit class FileExt(private val file: File) extends AnyVal {
-    def text: String = Source.fromFile(file).use {
+    def text(implicit codec: Codec): String = Source.fromFile(file).use {
       _.getLines().mkString("\n")
     }
 

@@ -2,4 +2,6 @@
 *.log
 .idea
 target
-src/main/resources/botLocal.conf
+src/main/resources/local.conf
+Logs.log
+saves

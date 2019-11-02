@@ -1,38 +1,52 @@
-package com.github.awant.habrareader.loaders
+package com.github.kright.habrareader.loaders
 
+import java.nio.charset.{Charset, CodingErrorAction}
 import java.text.SimpleDateFormat
 import java.util.{Date, Locale, TimeZone}
 
+import com.github.kright.habrareader.Implicits._
+import com.github.kright.habrareader.models.{ArticleMetrics, HabrArticle}
+import com.github.kright.habrareader.utils.DateUtils
 import net.ruippeixotog.scalascraper.browser.JsoupBrowser
-import net.ruippeixotog.scalascraper.scraper.ContentExtractors.{element, elementList}
-import com.github.awant.habrareader.Implicits._
-
-import scala.io.Source
-import scala.util.{Success, Try}
-import scala.xml.XML
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL._
+import net.ruippeixotog.scalascraper.scraper.ContentExtractors.{element, elementList}
+
+import scala.io.{Codec, Source}
+import scala.util.{Success, Try}
+import scala.xml.XML
 
 
 object HabrArticlesDownloader {
   private val rssURI = "https://habr.com/ru/rss/all/all/"
+  private val codec = Codec(Charset.forName("UTF-8")).onMalformedInput(CodingErrorAction.IGNORE)
 
-  private def getTextFromUrl(url: String): String = Source.fromURL(url).use(_.getLines().mkString("\n"))
+  private def getTextFromUrl(url: String): String = Source.fromURL(url)(codec).use(_.getLines().mkString("\n"))
 
   /** may block thread or throw exceptions */
-  def downloadRSSArticles: Seq[HabrArticleImprint] = parseRss(getTextFromUrl(rssURI))
+  def downloadRSSArticles: Seq[HabrArticle] = parseRss(getTextFromUrl(rssURI))
 
   /** may block thread or throw exceptions */
   def downloadArticle(url: String, pubDate: Date): HabrArticle = parseHtml(getTextFromUrl(url), pubDate)
 
-  def parseRss(text: String): Seq[HabrArticleImprint] = {
+  def parseRss(text: String): Seq[HabrArticle] = {
     val root = XML.loadString(text)
     val items = root \ "channel" \ "item"
 
     items.toList.map { item =>
       val link = (item \ "guid").text
-      val pubDate = parseDate((item \ "pubDate").text)
-      HabrArticleImprint(link, pubDate)
+
+      HabrArticle(
+        id = extractId(link),
+        link = link,
+        title = (item \ "title").text,
+        description = (item \ "description").text,
+        author = (item \ "creator").text,
+        categories = (item \ "category").map(_.text).toSet,
+        metrics = None,
+        publicationDate = parseDate((item \ "pubDate").text),
+        lastUpdateTime = DateUtils.now,
+      )
     }
   }
 
@@ -55,7 +69,7 @@ object HabrArticlesDownloader {
       attrs.get("property").contains("og:url")
     }.map(_ ("content")).getOrElse("")
 
-    val id: Int = link.split("/").filter(_.nonEmpty).last.toInt
+    val id: Int = extractId(link)
     val author: String = doc >> text(".post__meta .user-info__nickname")
 
     val views: Int = {
@@ -86,13 +100,17 @@ object HabrArticlesDownloader {
       title = title,
       description = description,
       author = author,
-      publicationDate = pubDate,
       categories = categories,
-      upVotes = upvotes,
-      downVotes = downvotes,
-      viewsCount = views,
-      commentsCount = commentsCount,
-      bookmarksCount = addedToBookmarks)
+      metrics = Some(ArticleMetrics(
+        upVotes = upvotes,
+        downVotes = downvotes,
+        viewsCount = views,
+        commentsCount = commentsCount,
+        bookmarksCount = addedToBookmarks
+      )),
+      publicationDate = pubDate,
+      lastUpdateTime = DateUtils.now
+    )
   }
 
   def parseDate(s: String): Date = dateFormat.parse(s)
@@ -101,11 +119,10 @@ object HabrArticlesDownloader {
     setTimeZone(TimeZone.getTimeZone("GMT"))
   }
 
-  def get(from: Date, to: Date): Seq[HabrArticle] = {
-    val imprints = downloadRSSArticles
-      .filter(imprint => (from.compareTo(imprint.publicationDate) <= 0) & (to.compareTo(imprint.publicationDate) > 0))
-    imprints.map(imprint => Try(downloadArticle(imprint.link, imprint.publicationDate))).collect{case Success(s) => s}
-  }
+  def getArticles(): Seq[HabrArticle] =
+    downloadRSSArticles.map { imprint =>
+      Try{downloadArticle(imprint.link, imprint.publicationDate)} }.collect { case Success(s) => s }
 
-  def update(link: String, pubDate: Date): HabrArticle = downloadArticle(link, pubDate)
+  private def extractId(link: String): Int =
+    link.split("/").filter(_.nonEmpty).last.toInt
 }
