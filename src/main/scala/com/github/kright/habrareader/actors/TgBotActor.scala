@@ -74,7 +74,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
         .pipeTo(sender)
     case UpdateArticle(chatId, article, Some(messageId)) =>
       bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML)))
-        .failed.foreach(ex => log.error(s"can't update existing message $ex"))
+        .failed.foreach(ex => log.error(s"can't update existing message $messageId for chat $chatId: $ex"))
     case msg: RequestUpdates => library ! msg
     case msg: UpdateChat => library ! msg
     case msg: GetStats => library ! msg
