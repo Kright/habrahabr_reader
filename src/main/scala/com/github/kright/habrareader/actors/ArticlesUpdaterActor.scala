@@ -1,6 +1,6 @@
 package com.github.kright.habrareader.actors
 
-import java.net.UnknownHostException
+import java.net.{SocketException, UnknownHostException}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.ArticlesUpdaterConfig
@@ -50,6 +50,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
 
   private def isInterestingException: Throwable => Boolean = {
     case _: UnknownHostException => false
+    case _: SocketException => false
     case _ => true
   }
 
