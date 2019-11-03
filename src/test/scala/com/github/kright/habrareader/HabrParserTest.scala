@@ -5,7 +5,7 @@ import com.github.kright.habrareader.utils.DateUtils
 import org.scalatest.{FunSuite, Ignore}
 
 
-//@Ignore
+@Ignore
 class ExternalSuite extends FunSuite {
   test("loding rss articles") {
     val articles = HabrArticlesDownloader.downloadRSSArticles
