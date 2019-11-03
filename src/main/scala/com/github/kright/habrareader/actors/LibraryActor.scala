@@ -20,7 +20,7 @@ object LibraryActor {
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
   final case class UpdateArticle(articles: HabrArticle)
-  final case class SaveState(chatId: Long)
+  final case class SaveState(chatId: Option[Long] = None)
   final case class GetStats(chatId: Long)
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
@@ -32,10 +32,10 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   val savesDir = new SavesDir(config.savesDir)
 
   val chatData =
-    savesDir.loadLast().map{ file =>
+    savesDir.loadLast().map { file =>
       log.info(s"load previous state from ${file.getAbsolutePath}")
       State.load(file)
-    }.getOrElse{
+    }.getOrElse {
       log.info(s"previous save wasn't found, use empty")
       State.empty()
     }
@@ -45,7 +45,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   var chatDataLastTime: Date = DateUtils.now
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState)
+    context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState())
   }
 
   override def receive: Receive = {
@@ -60,10 +60,12 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       chatData.updateArticle(article)
     case PostWasSentToTg(chatId, sentArticle) =>
       chatData.addSentArticle(chatId, sentArticle)
-    case SaveState(chatId) =>
+    case SaveState(chatIdOption) =>
       rmOldArticles()
       saveState()
-      sender ! SendMessageToTg(chatId, "saved!")
+      chatIdOption.foreach { chatId =>
+        sender ! SendMessageToTg(chatId, "saved!")
+      }
     case RequestUpdates(chatId) =>
       requestUpdates(chatId, sender)
     case GetArticles =>
@@ -82,8 +84,8 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   private def rmArticles(idsToRm: Seq[Int]) = {
     chatData.articles --= idsToRm
 
-    chatData.chats.keys.foreach{ id =>
-      chatData.updateChat(id){ chat =>
+    chatData.chats.keys.foreach { id =>
+      chatData.updateChat(id) { chat =>
         chat.copy(sentArticles = chat.sentArticles -- idsToRm)
       }
     }
