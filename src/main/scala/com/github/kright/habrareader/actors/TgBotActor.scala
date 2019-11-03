@@ -129,7 +129,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
   }
 
   onAdminCommand('save) { msg =>
-    observer ! SaveState(msg.chat.id)
+    observer ! SaveState(Some(msg.chat.id))
   }
 
   onAdminCommand('stats) { msg =>
