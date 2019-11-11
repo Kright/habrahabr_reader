@@ -14,8 +14,9 @@ import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.bot4s.telegram.models.Message
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
-import com.github.kright.habrareader.models.{Chat, FilterSettings, HabrArticle, SentArticle}
-import com.github.kright.habrareader.utils.SettingsRequestParser.{Command, CommandDouble, CommandStringDouble}
+import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
+import com.github.kright.habrareader.utils.ChangeSettings
+import com.github.kright.habrareader.utils.ChangeSettings._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -86,8 +87,6 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
 class TgBot(override val client: RequestHandler[Future]) extends TelegramBot with Polling with Commands[Future]
 
 class ObservableTgBot(override val client: RequestHandler[Future], observer: ActorRef, admins: Set[Long]) extends TgBot(client) {
-  import TgBotActor._
-
   onCommand('settings) { msg =>
     Future {
       observer ! GetSettings(msg.chat.id)
@@ -99,31 +98,16 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
       val cmd = msg.text.get
       val chatId = msg.chat.id
 
-      def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
-        chat => chat.copy(filterSettings = updater(chat.filterSettings))
+      val cmds = ChangeSettings.parse(cmd)
+      if (cmds.nonEmpty) {
+        observer ! UpdateChat(chatId, ChangeSettings.concatCommands(cmds))
 
-      def updateWeight(w: Map[String, Double], key: String, value: Double): Map[String, Double] =
-        if (value == 0.0)
-          w - key
-        else
-          w.updated(key, value)
-
-      cmd match {
-        case Command("/reset") =>
-          observer ! UpdateChat(chatId, _ => Chat.withDefaultSettings(chatId))
-        case Command("/subscribe") =>
-          observer ! UpdateChat(chatId, updateSettings(settings => settings.copy(updateAsSoonAsPossible = true)))
+        cmds.find {
+          case ChangeSubscription(true) => true
+          case _ => false
+        }.foreach { _ =>
           observer ! RequestUpdates(msg.chat.id)
-        case Command("/unsubscribe") =>
-          observer ! UpdateChat(chatId, updateSettings(settings => settings.copy(updateAsSoonAsPossible = false)))
-        case CommandStringDouble("/author", name, weight) =>
-          observer ! UpdateChat(chatId, updateSettings(s => s.copy(authorWeights = updateWeight(s.authorWeights, name, weight))))
-        case CommandStringDouble("/tag", name, weight) =>
-          observer ! UpdateChat(chatId, updateSettings(s => s.copy(tagWeights = updateWeight(s.tagWeights, name, weight))))
-        case CommandDouble("/rating", ratingThreshold) =>
-          observer ! UpdateChat(chatId, updateSettings(s => s.copy(ratingThreshold = ratingThreshold)))
-        case _ =>
-          observer ! SendMessageToTg(chatId, s"unknown command: '$cmd'")
+        }
       }
     }
   }
@@ -136,8 +120,10 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
     observer ! GetStats(msg.chat.id)
   }
 
-  onAdminCommand('new) { msg =>
-    observer ! RequestUpdates(msg.chat.id)
+  onCommand('new) { msg =>
+    Future {
+      observer ! RequestUpdates(msg.chat.id)
+    }
   }
 
   onCommand('start | 'help) { implicit msg =>
@@ -146,7 +132,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
          |/start | /help - list commands
          |/new - request new articles
          |/subscribe - receive new articles as soon as possible
-         |/unsubscribe - unsubscribe
+         |/unsubscribe - unsubscribe from receiving articles
          |/settings - print all settings
          |/reset - reset all weights to default
          |/author name weight

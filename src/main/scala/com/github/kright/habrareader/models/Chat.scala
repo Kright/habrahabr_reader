@@ -14,12 +14,13 @@ case class Chat(id: Long,
     else
       ""
 
-  def getSettingsPrettify: String =
-    s"""instant updates: ${filterSettings.updateAsSoonAsPossible}
-       |authors weights: ${prettyMap(filterSettings.authorWeights)}
-       |tags weights: ${prettyMap(filterSettings.tagWeights)}
-       |rating threshold: ${filterSettings.ratingThreshold}
-    """.stripMargin
+  def getSettingsAsCmd: String =
+    s"""${if (filterSettings.updateAsSoonAsPossible) "/subscribe" else "/unsubscribe"}
+       |/rating ${filterSettings.ratingThreshold}
+       |${
+      filterSettings.authorWeights.map { case (name, weight) => s"/author $name ${f"$weight%s"}\n" }.mkString("") +
+        filterSettings.tagWeights.map { case (tag, weight) => s"/tag $tag ${f"$weight%s"}" }.mkString("\n")
+    }""".stripMargin
 }
 
 object Chat {
