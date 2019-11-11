@@ -53,7 +53,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       chatData.updateChat(chatId)(updater)
       sender ! SendMessageToTg(chatId, "ok")
     case GetSettings(chatId) =>
-      sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsPrettify)
+      sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsAsCmd)
     case RequestUpdatesForAll(updateExistingMessages) =>
       processNewPostSending(sender, updateExistingMessages)
     case UpdateArticle(article) =>
