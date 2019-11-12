@@ -1,6 +1,7 @@
 package com.github.kright.habrareader.actors
 
 import java.net.{SocketException, UnknownHostException}
+import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.ArticlesUpdaterConfig
@@ -9,9 +10,8 @@ import com.github.kright.habrareader.loaders.HabrArticlesDownloader
 import com.github.kright.habrareader.models.HabrArticle
 import com.github.kright.habrareader.utils.DateUtils
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 
@@ -25,6 +25,9 @@ object ArticlesUpdaterActor {
 class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: ActorRef) extends Actor with ActorLogging {
 
   import ArticlesUpdaterActor._
+
+  private val threadsCount = 4
+  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threadsCount))
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(0.second, config.searchNewArticlesIntervalSeconds.seconds, self, SearchNewArticles)
@@ -54,7 +57,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
     case _ => true
   }
 
-  def searchNewArticles(): Unit = {
+  def searchNewArticles(): Unit = Future {
     for {
       rssArticle <- doSafe(HabrArticlesDownloader.downloadRSSArticles, Seq(), logException("can't download rss articles", isInterestingException))
       article <- doSafe(Option(HabrArticlesDownloader.downloadArticle(rssArticle.link, rssArticle.publicationDate)), None, logException("can't download article", isInterestingException))

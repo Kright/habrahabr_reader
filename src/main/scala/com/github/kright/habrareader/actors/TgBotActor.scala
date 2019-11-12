@@ -1,6 +1,7 @@
 package com.github.kright.habrareader.actors
 
 import java.net.{InetSocketAddress, Proxy}
+import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
@@ -31,7 +32,8 @@ object TgBotActor {
 class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
   import TgBotActor._
 
-  import ExecutionContext.Implicits.global
+  private val threadsCount = 2
+  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threadsCount))
 
   private val bot = ObservableTgBot(config, self, config.admins)
 
