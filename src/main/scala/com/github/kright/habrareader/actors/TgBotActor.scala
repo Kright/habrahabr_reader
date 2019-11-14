@@ -4,7 +4,6 @@ import java.net.{InetSocketAddress, Proxy}
 import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.pipe
 import cats.instances.future._
 import cats.syntax.functor._
 import com.bot4s.telegram.api.RequestHandler
@@ -20,16 +19,20 @@ import com.github.kright.habrareader.utils.ChangeSettings
 import com.github.kright.habrareader.utils.ChangeSettings._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 
 object TgBotActor {
   def props(config: TgBotActorConfig, library: ActorRef) = Props(new TgBotActor(config, library))
 
   final case class SendMessageToTg(chatId: Long, msg: String)
+
   final case class UpdateArticle(chatId: Long, article: HabrArticle, messageId: Option[Int])
+
 }
 
 class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Actor with ActorLogging {
+
   import TgBotActor._
 
   private val threadsCount = 2
@@ -68,21 +71,33 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
           )
         }
       }
-    case UpdateArticle(chatId, article, None) =>
-      val sent = bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
-      sent.failed.foreach { ex =>
-        log.error(s"can't send info about new article $ex")
-      }
-      sent.map(msg => PostWasSentToTg(chatId, SentArticle(msg.messageId, article.id, article.lastUpdateTime))) // todo read about pipeTo
-        .pipeTo(sender)
-    case UpdateArticle(chatId, article, Some(messageId)) =>
-      bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML)))
-        .failed.foreach(ex => log.error(s"can't update existing message $messageId for chat $chatId: $ex"))
+    case msg: UpdateArticle => updateArticle(msg, sender)
     case msg: RequestUpdates => library ! msg
     case msg: UpdateChat => library ! msg
     case msg: GetStats => library ! msg
     case msg: SaveState => library ! msg
     case unknownMessage => log.error(s"unknown message: $unknownMessage")
+  }
+
+  private def updateArticle(update: UpdateArticle, sender: ActorRef): Unit = {
+    update match {
+      case UpdateArticle(chatId, article, None) =>
+        bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
+          .onComplete {
+            case Success(sentMsg) =>
+              log.info(s"UpdateArticle($chatId, ${article.link})")
+              sender ! PostWasSentToTg(chatId, SentArticle(sentMsg.messageId, article.id, article.lastUpdateTime))
+            case Failure(ex) => log.error(s"can't sent article update ${article.link} for chat $chatId: $ex")
+          }
+      case UpdateArticle(chatId, article, Some(messageId)) =>
+        bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML)))
+          .onComplete {
+            case Success(_) =>
+              log.info(s"UpdateArticle($chatId, ${article.link}, $messageId)")
+              sender ! PostWasSentToTg(chatId, SentArticle(messageId, article.id, article.lastUpdateTime))
+            case Failure(ex) => log.error(s"can't update existing message $messageId for chat $chatId: $ex")
+          }
+    }
   }
 }
 
