@@ -34,7 +34,7 @@ object ChangeSettings {
     cmd match {
       case Reset => c => Chat.withDefaultSettings(c.id)
       case ChangeSubscription(newValue) =>
-        updateSettings(settings => settings.copy(updateAsSoonAsPossible = true))
+        updateSettings(settings => settings.copy(updateAsSoonAsPossible = newValue))
       case AuthorRating(name, weight) =>
         updateSettings(s => s.copy(authorWeights = updateWeight(s.authorWeights, name, weight)))
       case TagRating(name, weight) =>
