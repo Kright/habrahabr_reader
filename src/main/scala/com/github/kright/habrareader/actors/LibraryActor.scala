@@ -16,7 +16,7 @@ object LibraryActor {
 
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
   final case class GetSettings(chatId: Long)
-  final case class UpdateChat(chatId: Long, updater: Chat => Chat)
+  final case class UpdateChat(chatId: Long, updater: Chat => Chat, isSilent: Boolean = false)
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
   final case class UpdateArticle(articles: HabrArticle)
@@ -49,9 +49,11 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
   }
 
   override def receive: Receive = {
-    case UpdateChat(chatId, updater) =>
+    case UpdateChat(chatId, updater, isSilent) =>
       chatData.updateChat(chatId)(updater)
-      sender ! SendMessageToTg(chatId, "ok")
+      if (!isSilent) {
+        sender ! SendMessageToTg(chatId, "ok")
+      }
     case GetSettings(chatId) =>
       sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsAsCmd)
     case RequestUpdatesForAll(updateExistingMessages) =>
@@ -81,7 +83,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     rmArticles(chatData.articles.values.filter(_.publicationDate.getTime < threshold).map(_.id).toSeq)
   }
 
-  private def rmArticles(idsToRm: Seq[Int]) = {
+  private def rmArticles(idsToRm: Seq[Int]): Unit = {
     chatData.articles --= idsToRm
 
     chatData.chats.keys.foreach { id =>
