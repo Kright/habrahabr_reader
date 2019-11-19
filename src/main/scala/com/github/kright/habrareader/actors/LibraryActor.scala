@@ -31,7 +31,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
 
   val savesDir = new SavesDir(config.savesDir)
 
-  val chatData =
+  val chatData: State =
     savesDir.loadLast().map { file =>
       log.info(s"load previous state from ${file.getAbsolutePath}")
       State.load(file)

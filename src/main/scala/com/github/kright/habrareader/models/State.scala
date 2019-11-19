@@ -7,7 +7,6 @@ import com.github.kright.habrareader.Implicits._
 import com.github.kright.habrareader.actors.TgBotActor.UpdateArticle
 import io.circe.syntax._
 import io.circe.{Encoder, Json, _}
-import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
@@ -40,16 +39,12 @@ object State {
       articles <- c.get[mutable.HashMap[Int, HabrArticle]]("articles")
     } yield new State(chats, articles)
 
-  implicit val chatDataEq = new Eq[State] {
-    override def eqv(x: State, y: State): Boolean =
-      x.articles == y.articles && x.chats == y.chats
-  }
+  implicit val chatDataEq: Eq[State] = (x: State, y: State) =>
+    x.articles == y.articles && x.chats == y.chats
 }
 
 class State(val chats: mutable.HashMap[Long, Chat],
             val articles: mutable.HashMap[Int, HabrArticle]) {
-
-  private val log = LoggerFactory.getLogger(classOf[State])
 
   def getChat(id: Long): Chat = chats.getOrElse(id, Chat.withDefaultSettings(id))
 
@@ -77,7 +72,7 @@ class State(val chats: mutable.HashMap[Long, Chat],
   }
 
   def updateArticle(newArticle: HabrArticle): Unit =
-      articles(newArticle.id) = newArticle
+    articles(newArticle.id) = newArticle
 
   def addSentArticle(chatId: Long, sentArticle: SentArticle): Unit =
     updateChat(chatId) { chat =>

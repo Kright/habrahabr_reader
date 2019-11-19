@@ -9,7 +9,7 @@ case class FilterSettings(authorWeights: Map[String, Double] = Map.empty,
                           ratingThreshold: Double = 0.0,
                           updateAsSoonAsPossible: Boolean = false) {
 
-  val tagWeightsNormalized = tagWeights.map {
+  val tagWeightsNormalized: Map[String, Double] = tagWeights.map {
     case (tag, weight) => (TextNormalization.normalize(tag), weight)
   }
 

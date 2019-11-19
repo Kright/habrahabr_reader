@@ -8,7 +8,7 @@ import scala.collection.mutable
 
 class StateTest extends FunSuite {
 
-  def checkConsistency(initial: State) = {
+  def checkConsistency(initial: State): Unit = {
     val encoded1 = State.encode(initial)
     val decoded = State.decode(encoded1)
     val encoded2 = State.encode(decoded)

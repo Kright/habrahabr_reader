@@ -6,7 +6,7 @@ import org.scalatest.{FunSuite, Ignore}
 
 
 @Ignore
-class ExternalSuite extends FunSuite {
+class HabrParserTest extends FunSuite {
   test("loding rss articles") {
     val articles = HabrArticlesDownloader.downloadRSSArticles
     articles.foreach(println(_))

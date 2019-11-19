@@ -8,12 +8,6 @@ case class Chat(id: Long,
                 filterSettings: FilterSettings,
                 sentArticles: Map[Int, SentArticle] = Map.empty) {
 
-  private def prettyMap(map: Map[String, Double]): String =
-    if (map.nonEmpty)
-      map.toList.map { case (name, weight) => s"- $name: $weight" }.mkString("\n", "\n", "")
-    else
-      ""
-
   def getSettingsAsCmd: String =
     s"""${if (filterSettings.updateAsSoonAsPossible) "/subscribe" else "/unsubscribe"}
        |/rating ${filterSettings.ratingThreshold}
