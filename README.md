@@ -9,4 +9,6 @@ Each user can define his personal threshold and ratings for each author or tag.
 Negative values like -1000 may completely ban author or tag.
 Bot saves it's own state in json in 'saves' dir.
 
+[Article about this project on habr.com](https://habr.com/ru/post/475450/)
+
 Work in progress, bugs are possible.

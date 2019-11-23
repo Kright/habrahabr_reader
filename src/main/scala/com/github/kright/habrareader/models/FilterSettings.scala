@@ -9,8 +9,12 @@ case class FilterSettings(authorWeights: Map[String, Double] = Map.empty,
                           ratingThreshold: Double = 0.0,
                           updateAsSoonAsPossible: Boolean = false) {
 
-  val tagWeightsNormalized = tagWeights.map {
+  val tagWeightsNormalized: Map[String, Double] = tagWeights.map {
     case (tag, weight) => (TextNormalization.normalize(tag), weight)
+  }
+
+  val authorWeightsNormalized: Map[String, Double] = authorWeights.map {
+    case (author, weight) => (TextNormalization.normalize(author), weight)
   }
 
   def isInteresting(article: HabrArticle): Boolean = {
@@ -22,7 +26,7 @@ case class FilterSettings(authorWeights: Map[String, Double] = Map.empty,
 
     val weight =
       article.metrics.map(m => m.upVotes - m.downVotes).getOrElse(0) +
-        authorWeights.getOrElse(article.author, 0.0) +
+        authorWeightsNormalized.getOrElse(article.authorNormalized, 0.0) +
         getMeanOrZero(article.categoriesNormalized.toSeq.map(tagWeightsNormalized.getOrElse(_, 0.0)))
 
     weight >= ratingThreshold

@@ -4,54 +4,45 @@ import java.util.Date
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.LibraryActorConfig
+import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.actors.TgBotActor.SendMessageToTg
 import com.github.kright.habrareader.models._
-import com.github.kright.habrareader.utils.{DateUtils, SavesDir}
+import com.github.kright.habrareader.utils.{DateUtils, Saver}
 
 import scala.concurrent.ExecutionContextExecutor
 
 
 object LibraryActor {
-  def props(config: LibraryActorConfig): Props = Props(new LibraryActor(config))
+  def props(config: LibraryActorConfig, saver: Saver[State]): Props = Props(new LibraryActor(config, saver))
 
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
   final case class GetSettings(chatId: Long)
-  final case class UpdateChat(chatId: Long, updater: Chat => Chat)
+  final case class UpdateChat(chatId: Long, updater: Chat => Chat, isSilent: Boolean = false)
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
-  final case class UpdateArticle(articles: HabrArticle)
+  final case class UpdateArticle(article: HabrArticle)
   final case class SaveState(chatId: Option[Long] = None)
   final case class GetStats(chatId: Long)
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
 }
 
-class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
-  import LibraryActor._
-
-  val savesDir = new SavesDir(config.savesDir)
-
-  val chatData =
-    savesDir.loadLast().map { file =>
-      log.info(s"load previous state from ${file.getAbsolutePath}")
-      State.load(file)
-    }.getOrElse {
-      log.info(s"previous save wasn't found, use empty")
-      State.empty()
-    }
-
+class LibraryActor(config: LibraryActorConfig, saver: Saver[State]) extends Actor with ActorLogging {
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
-  var chatDataLastTime: Date = DateUtils.now
+  private val chatData = saver.load()
+  private var chatDataLastTime: Date = DateUtils.now
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState())
   }
 
   override def receive: Receive = {
-    case UpdateChat(chatId, updater) =>
+    case UpdateChat(chatId, updater, isSilent) =>
       chatData.updateChat(chatId)(updater)
-      sender ! SendMessageToTg(chatId, "ok")
+      if (!isSilent) {
+        sender ! SendMessageToTg(chatId, "ok")
+      }
     case GetSettings(chatId) =>
       sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsAsCmd)
     case RequestUpdatesForAll(updateExistingMessages) =>
@@ -62,7 +53,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
       chatData.addSentArticle(chatId, sentArticle)
     case SaveState(chatIdOption) =>
       rmOldArticles()
-      saveState()
+      saver.save(chatData)
       chatIdOption.foreach { chatId =>
         sender ! SendMessageToTg(chatId, "saved!")
       }
@@ -81,7 +72,7 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
     rmArticles(chatData.articles.values.filter(_.publicationDate.getTime < threshold).map(_.id).toSeq)
   }
 
-  private def rmArticles(idsToRm: Seq[Int]) = {
+  private def rmArticles(idsToRm: Seq[Int]): Unit = {
     chatData.articles --= idsToRm
 
     chatData.chats.keys.foreach { id =>
@@ -89,12 +80,6 @@ class LibraryActor(config: LibraryActorConfig) extends Actor with ActorLogging {
         chat.copy(sentArticles = chat.sentArticles -- idsToRm)
       }
     }
-  }
-
-  private def saveState(): Unit = {
-    val dest = savesDir.newSave(DateUtils.now)
-    dest.getParentFile.mkdirs()
-    State.save(chatData, dest)
   }
 
   private def getStatsMsg: String =
