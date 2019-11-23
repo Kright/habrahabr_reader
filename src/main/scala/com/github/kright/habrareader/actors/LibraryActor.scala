@@ -20,7 +20,7 @@ object LibraryActor {
   final case class UpdateChat(chatId: Long, updater: Chat => Chat, isSilent: Boolean = false)
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
-  final case class UpdateArticle(articles: HabrArticle)
+  final case class UpdateArticle(article: HabrArticle)
   final case class SaveState(chatId: Option[Long] = None)
   final case class GetStats(chatId: Long)
   final case object GetArticles

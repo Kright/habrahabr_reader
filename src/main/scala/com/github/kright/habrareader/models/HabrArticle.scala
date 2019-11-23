@@ -18,6 +18,7 @@ case class HabrArticle(id: Int,
                        lastUpdateTime: Date) {
 
   val categoriesNormalized: Set[String] = categories.map(TextNormalization.normalize)
+  val authorNormalized: String = TextNormalization.normalize(author)
 
   override def hashCode(): Int = id
 
