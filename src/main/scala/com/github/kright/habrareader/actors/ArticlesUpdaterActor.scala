@@ -1,6 +1,6 @@
 package com.github.kright.habrareader.actors
 
-import java.io.FileNotFoundException
+import java.io.{FileNotFoundException, IOException}
 import java.net.{SocketException, UnknownHostException}
 import java.util.concurrent.Executors
 
@@ -56,6 +56,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
     case _: UnknownHostException => false
     case _: SocketException => false
     case _: FileNotFoundException => false
+    case _: IOException => false
     case _ => true
   }
 
