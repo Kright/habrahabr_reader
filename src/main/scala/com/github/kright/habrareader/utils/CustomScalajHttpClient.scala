@@ -1,0 +1,130 @@
+package com.github.kright.habrareader.utils
+
+import java.net.Proxy
+import java.nio.file.Files
+
+import cats.instances.future._
+import com.bot4s.telegram.api.RequestHandler
+import com.bot4s.telegram.methods.{Request, JsonRequest, MultipartRequest, Response}
+import com.bot4s.telegram.models.InputFile
+import com.bot4s.telegram.marshalling
+import io.circe.parser.parse
+import io.circe.{Decoder, Encoder}
+import scalaj.http.{Http, MultiPart}
+import slogging.StrictLogging
+
+import scala.concurrent.{ExecutionContext, Future, blocking}
+
+/**
+  * This is a modified code of a class com.bot4s.telegram.clients.ScalajHttpClient
+  *
+  * If connection is unavailable and I use fixedTreadPool, I got a huge queue of unsent messages.
+  * When connection will be established, all this old messages will be sent, which is undesirable.
+  *
+  * I add skipRequestTimeoutMs and compare request creation time and time when I actually try to send it.
+  *
+  *
+  * Scalaj-http Telegram Bot API client
+  *
+  * Provide transparent camelCase <-> underscore_case conversions during serialization/deserialization.
+  *
+  * The Scalaj-http supports the following InputFiles:
+  *   InputFile.FileId
+  *   InputFile.Contents
+  *   InputFile.Path
+  *
+  * @param token Bot token
+  */
+class CustomScalajHttpClient(token: String, proxy: Proxy = Proxy.NO_PROXY, telegramHost: String = "api.telegram.org")
+                      (implicit ec: ExecutionContext) extends RequestHandler[Future] with StrictLogging {
+
+  val connectionTimeoutMs = 10000
+  val readTimeoutMs = 50000
+  val skipRequestTimeoutMs = 20000
+
+  private val apiBaseUrl = s"https://$telegramHost/bot$token/"
+
+  def sendRequest[R, T <: Request[_]](request: T)(implicit encT: Encoder[T], decR: Decoder[R]): Future[R] = {
+    val url = apiBaseUrl + request.methodName
+
+    val scalajRequest = request match {
+      case r: JsonRequest[_] =>
+        Http(url)
+          .postData(marshalling.toJson(request))
+          .header("Content-Type", "application/json")
+
+      case r: MultipartRequest[_] =>
+
+        // InputFile.FileIds are encoded as query params.
+        val (fileIds, files) = r.getFiles.partition {
+          case (key, _: InputFile.FileId) => true
+          case _ => false
+        }
+
+        val parts = files.map {
+          case (camelKey, inputFile) =>
+            val key = marshalling.snakenize(camelKey)
+            inputFile match {
+              case InputFile.FileId(id) =>
+                throw new RuntimeException("InputFile.FileId cannot must be encoded as a query param")
+
+              case InputFile.Contents(filename, contents) =>
+                MultiPart(key, filename, "application/octet-stream", contents)
+
+              case InputFile.Path(path) =>
+                MultiPart(key, path.getFileName.toString(),
+                  "application/octet-stream",
+                  Files.newInputStream(path),
+                  Files.size(path),
+                  _ => ())
+
+              case other =>
+                throw new RuntimeException(s"InputFile $other not supported")
+            }
+        }
+
+        val fields = parse(marshalling.toJson(request)).fold(throw _, _.asObject.map {
+          _.toMap.mapValues {
+            json =>
+              json.asString.getOrElse(marshalling.printer.pretty(json))
+          }
+        })
+
+        val fileIdsParams = fileIds.map {
+          case (key, inputFile: InputFile.FileId) =>
+            marshalling.snakenize(key) -> inputFile.fileId
+        }
+
+        val params = fields.getOrElse(Map())
+
+        Http(url).params(params ++ fileIdsParams).postMulti(parts: _*)
+    }
+
+    import marshalling.responseDecoder
+
+    val requestCreationTime = System.currentTimeMillis()
+
+    Future {
+      blocking {
+        val evalTime = System.currentTimeMillis()
+
+        if (evalTime > requestCreationTime + skipRequestTimeoutMs) {
+          throw new RuntimeException("request timeout")
+        }
+
+        scalajRequest
+          .timeout(connectionTimeoutMs, readTimeoutMs)
+          .proxy(proxy)
+          .asString
+      }
+    } map {
+      x =>
+        if (x.isSuccess)
+          marshalling.fromJson[Response[R]](x.body)
+        else
+          throw new RuntimeException(s"Error ${x.code} on request")
+    } map (processApiResponse[R])
+  }
+
+}
+

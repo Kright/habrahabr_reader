@@ -8,14 +8,13 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.bot4s.telegram.api.RequestHandler
 import com.bot4s.telegram.api.declarative.Commands
-import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.future.{Polling, TelegramBot}
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.bot4s.telegram.models.Message
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
-import com.github.kright.habrareader.utils.ChangeSettings
+import com.github.kright.habrareader.utils.{ChangeSettings, CustomScalajHttpClient}
 import com.github.kright.habrareader.utils.ChangeSettings._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -188,6 +187,6 @@ object ObservableTgBot {
   def apply(botConfig: TgBotActorConfig, observer: ActorRef, admins: Set[Long])(implicit ec: ExecutionContext): ObservableTgBot = {
     val proxy = if (botConfig.proxy.ip.isEmpty) Proxy.NO_PROXY else
       new Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(botConfig.proxy.ip, botConfig.proxy.port))
-    new ObservableTgBot(new ScalajHttpClient(botConfig.token, proxy), observer, admins)
+    new ObservableTgBot(new CustomScalajHttpClient(botConfig.token, proxy), observer, admins)
   }
 }
