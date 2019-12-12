@@ -43,6 +43,7 @@ object HabrArticlesDownloader {
         description = (item \ "description").text,
         author = (item \ "creator").text,
         categories = (item \ "category").map(_.text).toSet,
+        company = extractCompany(link),
         metrics = None,
         publicationDate = parseDate((item \ "pubDate").text),
         lastUpdateTime = DateUtils.now,
@@ -101,6 +102,7 @@ object HabrArticlesDownloader {
       description = description,
       author = author,
       categories = categories,
+      company = extractCompany(link),
       metrics = Some(ArticleMetrics(
         upVotes = upvotes,
         downVotes = downvotes,
@@ -125,4 +127,9 @@ object HabrArticlesDownloader {
 
   private def extractId(link: String): Int =
     link.split("/").filter(_.nonEmpty).last.toInt
+
+  private def extractCompany(url: String): Option[String] = {
+    val arr = url.split('/').lift
+    arr(4).filter(_ == "company").flatMap(_ => arr(5))
+  }
 }

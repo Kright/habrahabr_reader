@@ -13,6 +13,7 @@ case class HabrArticle(id: Int,
                        description: String,
                        author: String,
                        categories: Set[String],
+                       company: Option[String],
                        metrics: Option[ArticleMetrics],
                        publicationDate: Date,
                        lastUpdateTime: Date) {
@@ -55,8 +56,9 @@ object HabrArticle {
       publicationDate <- c.get[Date]("publicationDate")
       lastUpdateTime <- c.get[Date]("lastUpdateTime")
       categories <- c.get[Set[String]]("categories")
+      company <- c.get[Option[String]]("company")
       metrics <- c.get[Option[ArticleMetrics]]("metrics")
-    } yield HabrArticle(id, link, title, description, author, categories, metrics, publicationDate, lastUpdateTime)
+    } yield HabrArticle(id, link, title, description, author, categories, company, metrics, publicationDate, lastUpdateTime)
   }
 }
 

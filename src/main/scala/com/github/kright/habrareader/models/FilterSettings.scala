@@ -5,6 +5,7 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 
 case class FilterSettings(authorWeights: Weights = Weights(),
                           tagWeights: Weights = Weights(),
+                          companyWeights: Weights = Weights(),
                           ratingThreshold: Double = 0.0,
                           updateAsSoonAsPossible: Boolean = false) {
 
@@ -18,7 +19,8 @@ case class FilterSettings(authorWeights: Weights = Weights(),
     val weight =
       article.metrics.map(m => m.upVotes - m.downVotes).getOrElse(0) +
         authorWeights(article.authorNormalized) +
-        getMeanOrZero(article.categoriesNormalized.toSeq.map(tagWeights(_)))
+        getMeanOrZero(article.categoriesNormalized.toSeq.map(tagWeights(_))) +
+        article.company.map(companyWeights(_)).getOrElse(0.0)
 
     weight >= ratingThreshold
   }
@@ -29,6 +31,7 @@ object FilterSettings {
     Json.obj(
       "authorWeights" := settings.authorWeights,
       "tagWeights" := settings.tagWeights,
+      "companyWeights" := settings.companyWeights,
       "ratingThreshold" := settings.ratingThreshold,
       "updateAsSoonAsPossible" := settings.updateAsSoonAsPossible,
     )
@@ -37,8 +40,9 @@ object FilterSettings {
     for {
       authorWeights <- c.get[Weights]("authorWeights")
       tagWeights <- c.get[Weights]("tagWeights")
+      companyWeights <- c.get[Option[Weights]]("companyWeights")
       ratingThreshold <- c.get[Double]("ratingThreshold")
       updateAsSoonAsPossible <- c.get[Boolean]("updateAsSoonAsPossible")
-    } yield FilterSettings(authorWeights, tagWeights, ratingThreshold, updateAsSoonAsPossible)
+    } yield FilterSettings(authorWeights, tagWeights, companyWeights.getOrElse(Weights()), ratingThreshold, updateAsSoonAsPossible)
   }
 }

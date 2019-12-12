@@ -8,13 +8,18 @@ case class Chat(id: Long,
                 filterSettings: FilterSettings,
                 sentArticles: Map[Int, SentArticle] = Map.empty) {
 
-  def getSettingsAsCmd: String =
+  def getSettingsAsCmd: String = {
+    def toLines(w: Weights, cmd: String): Iterable[String] = w.normalized.map { case (name, weight) => s"$cmd $name $weight" }
+
+    val cmds =
+      toLines(filterSettings.authorWeights, "/author") ++
+        toLines(filterSettings.tagWeights, "/tag") ++
+        toLines(filterSettings.companyWeights, "/company")
+
     s"""${if (filterSettings.updateAsSoonAsPossible) "/subscribe" else "/unsubscribe"}
        |/rating ${filterSettings.ratingThreshold}
-       |${
-      filterSettings.authorWeights.normalized.map { case (name, weight) => s"/author $name ${f"$weight%s"}\n" }.mkString("") +
-        filterSettings.tagWeights.normalized.map { case (tag, weight) => s"/tag $tag ${f"$weight%s"}" }.mkString("\n")
-    }""".stripMargin
+       |${cmds.mkString("\n")}""".stripMargin
+  }
 }
 
 object Chat {

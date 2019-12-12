@@ -10,6 +10,7 @@ object HabrArticleDummy {
     s"description_$id",
     s"author_$id",
     Set.empty,
+    None,
     Some(ArticleMetrics(
       upVotes = upVotes,
       downVotes = 0,

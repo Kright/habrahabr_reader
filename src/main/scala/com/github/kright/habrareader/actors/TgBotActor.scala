@@ -122,7 +122,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
     }
   }
 
-  onCommand('reset | 'author | 'tag | 'rating | 'subscribe | 'unsubscribe) { msg =>
+  onCommand('reset | 'author | 'tag | 'company | 'rating | 'subscribe | 'unsubscribe) { msg =>
     Future {
       val cmd = msg.text.get
       val chatId = msg.chat.id
@@ -166,6 +166,7 @@ class ObservableTgBot(override val client: RequestHandler[Future], observer: Act
          |/reset - reset all weights to default
          |/author name weight
          |/tag name weight
+         |/company name weight
          |example: '/tag scala +10'
          |/rating thresholdValue
          |

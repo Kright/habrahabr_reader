@@ -37,6 +37,7 @@ class StateTest extends FunSuite {
       description = "decr",
       author = "authorName",
       categories = Set("kek", "lol"),
+      company = None,
       metrics = Some(new ArticleMetrics(
         upVotes = 1,
         downVotes = 2,

@@ -13,6 +13,8 @@ object ChangeSettings {
 
   case class TagRating(tag: String, rating: Double) extends ChangeSettings
 
+  case class CompanyRating(name: String, rating: Double) extends ChangeSettings
+
   case class RatingThreshold(value: Double) extends ChangeSettings
 
   case class ChangeSubscription(newValue: Boolean) extends ChangeSettings
@@ -33,6 +35,8 @@ object ChangeSettings {
         updateSettings(s => s.copy(authorWeights = s.authorWeights.updated(name, weight)))
       case TagRating(name, weight) =>
         updateSettings(s => s.copy(tagWeights = s.tagWeights.updated(name, weight)))
+      case CompanyRating(name, weight) =>
+        updateSettings(s => s.copy(companyWeights = s.companyWeights.updated(name, weight)))
       case RatingThreshold(value) =>
         updateSettings(_.copy(ratingThreshold = value))
     }
@@ -63,6 +67,12 @@ object ChangeSettings {
             name <- toString(tokens.lift(pos + 1))
             value <- toDouble(tokens.lift(pos + 2))
           } result += TagRating(name, value)
+
+        case "/company" =>
+          for {
+            name <- toString(tokens.lift(pos + 1))
+            value <- toDouble(tokens.lift(pos + 2))
+          } result += CompanyRating(name, value)
 
         case "/rating" =>
           for {
