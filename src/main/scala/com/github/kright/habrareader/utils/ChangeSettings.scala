@@ -24,21 +24,15 @@ object ChangeSettings {
   private def updateSettings(updater: FilterSettings => FilterSettings): Chat => Chat =
     chat => chat.copy(filterSettings = updater(chat.filterSettings))
 
-  private def updateWeight(w: Map[String, Double], key: String, value: Double): Map[String, Double] =
-    if (value == 0.0)
-      w - key
-    else
-      w.updated(key, value)
-
   def applyCmd(cmd: ChangeSettings): Chat => Chat = {
     cmd match {
       case Reset => c => Chat.withDefaultSettings(c.id)
       case ChangeSubscription(newValue) =>
         updateSettings(settings => settings.copy(updateAsSoonAsPossible = newValue))
       case AuthorRating(name, weight) =>
-        updateSettings(s => s.copy(authorWeights = updateWeight(s.authorWeights, name, weight)))
+        updateSettings(s => s.copy(authorWeights = s.authorWeights.updated(name, weight)))
       case TagRating(name, weight) =>
-        updateSettings(s => s.copy(tagWeights = updateWeight(s.tagWeights, name, weight)))
+        updateSettings(s => s.copy(tagWeights = s.tagWeights.updated(name, weight)))
       case RatingThreshold(value) =>
         updateSettings(_.copy(ratingThreshold = value))
     }

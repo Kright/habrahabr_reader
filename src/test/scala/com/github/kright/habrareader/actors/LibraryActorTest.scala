@@ -36,8 +36,8 @@ class LibraryActorTest extends TestKit(ActorSystem("MySpec"))
 
       libraryActor ! UpdateChat(chatId, c => c.copy(
         filterSettings = FilterSettings(
-          authorWeights = Map("sly_g" -> -30),
-          tagWeights = Map("scala" -> 20),
+          authorWeights = Weights("sly_g" -> -30.0),
+          tagWeights = Weights("scala" -> 20.0),
           ratingThreshold = 25,
           updateAsSoonAsPossible = true
         )

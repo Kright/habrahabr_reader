@@ -1,21 +1,12 @@
 package com.github.kright.habrareader.models
 
-import com.github.kright.habrareader.utils.TextNormalization
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
-case class FilterSettings(authorWeights: Map[String, Double] = Map.empty,
-                          tagWeights: Map[String, Double] = Map.empty,
+case class FilterSettings(authorWeights: Weights = Weights(),
+                          tagWeights: Weights = Weights(),
                           ratingThreshold: Double = 0.0,
                           updateAsSoonAsPossible: Boolean = false) {
-
-  val tagWeightsNormalized: Map[String, Double] = tagWeights.map {
-    case (tag, weight) => (TextNormalization.normalize(tag), weight)
-  }
-
-  val authorWeightsNormalized: Map[String, Double] = authorWeights.map {
-    case (author, weight) => (TextNormalization.normalize(author), weight)
-  }
 
   def isInteresting(article: HabrArticle): Boolean = {
     def getMeanOrZero(numbers: Seq[Double]): Double =
@@ -26,8 +17,8 @@ case class FilterSettings(authorWeights: Map[String, Double] = Map.empty,
 
     val weight =
       article.metrics.map(m => m.upVotes - m.downVotes).getOrElse(0) +
-        authorWeightsNormalized.getOrElse(article.authorNormalized, 0.0) +
-        getMeanOrZero(article.categoriesNormalized.toSeq.map(tagWeightsNormalized.getOrElse(_, 0.0)))
+        authorWeights(article.authorNormalized) +
+        getMeanOrZero(article.categoriesNormalized.toSeq.map(tagWeights(_)))
 
     weight >= ratingThreshold
   }
@@ -44,8 +35,8 @@ object FilterSettings {
 
   implicit val decoder: Decoder[FilterSettings] = (c: HCursor) => {
     for {
-      authorWeights <- c.get[Map[String, Double]]("authorWeights")
-      tagWeights <- c.get[Map[String, Double]]("tagWeights")
+      authorWeights <- c.get[Weights]("authorWeights")
+      tagWeights <- c.get[Weights]("tagWeights")
       ratingThreshold <- c.get[Double]("ratingThreshold")
       updateAsSoonAsPossible <- c.get[Boolean]("updateAsSoonAsPossible")
     } yield FilterSettings(authorWeights, tagWeights, ratingThreshold, updateAsSoonAsPossible)

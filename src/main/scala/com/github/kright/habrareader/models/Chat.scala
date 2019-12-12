@@ -12,8 +12,8 @@ case class Chat(id: Long,
     s"""${if (filterSettings.updateAsSoonAsPossible) "/subscribe" else "/unsubscribe"}
        |/rating ${filterSettings.ratingThreshold}
        |${
-      filterSettings.authorWeights.map { case (name, weight) => s"/author $name ${f"$weight%s"}\n" }.mkString("") +
-        filterSettings.tagWeights.map { case (tag, weight) => s"/tag $tag ${f"$weight%s"}" }.mkString("\n")
+      filterSettings.authorWeights.normalized.map { case (name, weight) => s"/author $name ${f"$weight%s"}\n" }.mkString("") +
+        filterSettings.tagWeights.normalized.map { case (tag, weight) => s"/tag $tag ${f"$weight%s"}" }.mkString("\n")
     }""".stripMargin
 }
 
