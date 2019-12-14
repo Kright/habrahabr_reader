@@ -3,15 +3,17 @@ package com.github.kright.habrareader.actors
 import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.{ask, pipe}
+import akka.util.Timeout
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
 import com.bot4s.telegram.models.Message
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
 import com.github.kright.habrareader.utils.ChangeSettings
-import com.github.kright.habrareader.utils.ChangeSettings._
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
@@ -75,23 +77,25 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
       case "start" | "help" => sendMessageToTg(chatId, helpMsgReplyText)
       case "reset" | "author" | "tag" | "company" | "rating" | "subscribe" | "unsubscribe" =>
         processChangeSettingsCmd(chatId, message.text.get)
-      case "save" if isAdmin => library ! SaveState(Some(chatId))
+      case "save" if isAdmin => save(message.chat.id)
       case "stats" if isAdmin => library ! GetStats(chatId)
       case _ => log.info(s"unknown text: '${message.text.getOrElse("")}'")
     }
   }
 
+  private def save(chatId: Long): Unit = {
+    implicit val timeout: Timeout = 10.seconds
+    (library ? SaveState(needConfirmation = true)) map { case Ok => SendMessageToTg(chatId, "saved!") } pipeTo self
+  }
+
   private def processChangeSettingsCmd(chatId: Long, cmd: String): Unit = {
+    implicit val timeout: Timeout = 10.seconds
     val cmds = ChangeSettings.parse(cmd)
     if (cmds.nonEmpty) {
-      library ! UpdateChat(chatId, ChangeSettings.concatCommands(cmds))
-
-      cmds.find {
-        case ChangeSubscription(true) => true
-        case _ => false
-      }.foreach { _ =>
-        library ! RequestUpdates(chatId)
-      }
+      val upd = UpdateChat(chatId, ChangeSettings.concatCommands(cmds), needConfirmation = true)
+      (library ? upd) map { case Ok => SendMessageToTg(chatId, "ok!") } pipeTo self
+    } else {
+      self ! SendMessageToTg(chatId, "can't parse commands")
     }
   }
 
@@ -117,7 +121,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
         log.error(s"can't send message to $chatId: $ex, '${ex.getMessage}', so unsubscribe this user")
         library ! UpdateChat(chatId,
           chat => chat.copy(filterSettings = chat.filterSettings.copy(updateAsSoonAsPossible = false)),
-          isSilent = true
+          needConfirmation = false
         )
       case _ =>
     }

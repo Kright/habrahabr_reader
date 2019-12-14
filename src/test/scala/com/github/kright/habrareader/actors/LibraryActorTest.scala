@@ -41,9 +41,9 @@ class LibraryActorTest extends TestKit(ActorSystem("MySpec"))
           ratingThreshold = 25,
           updateAsSoonAsPossible = true
         )
-      ))
+      ), needConfirmation = true)
 
-      expectMsg(SendMessageToTg(chatId, "ok"))
+      expectMsg(Ok)
     }
 
     "should get settings" in {
