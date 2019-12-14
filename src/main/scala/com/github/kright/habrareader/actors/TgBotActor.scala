@@ -8,8 +8,8 @@ import com.bot4s.telegram.models.Message
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
-import com.github.kright.habrareader.utils.ChangeSettings._
 import com.github.kright.habrareader.utils.ChangeSettings
+import com.github.kright.habrareader.utils.ChangeSettings._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -130,28 +130,18 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
         unsubscribeIfBotBanned(ex, chatId)
     }
 
-  private def updateArticle(update: UpdateArticle, sender: ActorRef): Unit = {
-    update match {
+  private def updateArticle(update: UpdateArticle, sender: ActorRef): Unit =
+    (update match {
       case UpdateArticle(chatId, article, None) =>
-        bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML)))
-          .onComplete {
-            case Success(sentMsg) =>
-              log.info(s"UpdateArticle($chatId, ${article.link})")
-              sender ! PostWasSentToTg(chatId, SentArticle(sentMsg.messageId, article.id, article.lastUpdateTime))
-            case Failure(ex) =>
-              log.error(s"can't send article update ${article.link} for chat $chatId: $ex")
-              unsubscribeIfBotBanned(ex, chatId)
-          }
+        bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML))).map(_.messageId)
       case UpdateArticle(chatId, article, Some(messageId)) =>
-        bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML)))
-          .onComplete {
-            case Success(_) =>
-              log.info(s"UpdateArticle($chatId, ${article.link}, $messageId)")
-              sender ! PostWasSentToTg(chatId, SentArticle(messageId, article.id, article.lastUpdateTime))
-            case Failure(ex) =>
-              log.error(s"can't update existing message $messageId for chat $chatId: $ex")
-              unsubscribeIfBotBanned(ex, chatId)
-          }
+        bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML))).map(_ => messageId)
+    }).onComplete {
+      case Success(sentMessageId) =>
+        log.info(s"$update")
+        sender ! PostWasSentToTg(update.chatId, SentArticle(sentMessageId, update.article.id, update.article.lastUpdateTime))
+      case Failure(ex) =>
+        log.error(s"can't send article update $update: $ex")
+        unsubscribeIfBotBanned(ex, update.chatId)
     }
-  }
 }
