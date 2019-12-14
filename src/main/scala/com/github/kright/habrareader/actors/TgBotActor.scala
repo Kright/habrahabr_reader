@@ -79,6 +79,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
         processChangeSettingsCmd(chatId, message.text.get)
       case "save" if isAdmin => save(message.chat.id)
       case "stats" if isAdmin => library ! GetStats(chatId)
+      case "stop" if isAdmin => library ! saveAndStop(chatId)
       case _ => log.info(s"unknown text: '${message.text.getOrElse("")}'")
     }
   }
@@ -86,6 +87,17 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
   private def save(chatId: Long): Unit = {
     implicit val timeout: Timeout = 10.seconds
     (library ? SaveState(needConfirmation = true)) map { case Ok => SendMessageToTg(chatId, "saved!") } pipeTo self
+  }
+
+  private def saveAndStop(chatId: Long): Unit = {
+    implicit val timeout: Timeout = 10.seconds
+    (library ? SaveState(needConfirmation = true)) foreach { case Ok =>
+      log.error("stop bot because of /stop admin command!")
+      self ! SendMessageToTg(chatId, "saved!, stopping...")
+      context.system.scheduler.scheduleOnce(5.seconds) {
+        sys.exit(0) // this isn't a best way to stop
+      }
+    }
   }
 
   private def processChangeSettingsCmd(chatId: Long, cmd: String): Unit = {
