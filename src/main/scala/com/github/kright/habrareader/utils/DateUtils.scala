@@ -6,8 +6,6 @@ import java.util.{Calendar, Date}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-import scala.concurrent.duration.FiniteDuration
-
 
 object DateUtils {
   //todo may be rm this, store date as simple Long number in milliseconds

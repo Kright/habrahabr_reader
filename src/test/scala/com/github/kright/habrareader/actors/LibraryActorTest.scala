@@ -30,7 +30,7 @@ class LibraryActorTest extends TestKit(ActorSystem("MySpec"))
     }
 
     val libraryActor = system.actorOf(LibraryActor.props(config, saver))
-    val chatId = 12
+    val chatId: Long = 12
 
     "should update settings" in {
 

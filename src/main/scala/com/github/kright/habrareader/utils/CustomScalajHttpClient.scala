@@ -93,6 +93,7 @@ class CustomScalajHttpClient(token: String, proxy: Proxy = Proxy.NO_PROXY, teleg
         val fileIdsParams = fileIds.map {
           case (key, inputFile: InputFile.FileId) =>
             marshalling.snakenize(key) -> inputFile.fileId
+          case _ => ???
         }
 
         val params = fields.getOrElse(Map())

@@ -1,7 +1,5 @@
 package com.github.kright.habrareader.actors
 
-import java.util.Date
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.github.kright.habrareader.AppConfig.LibraryActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
@@ -32,7 +30,6 @@ class LibraryActor(config: LibraryActorConfig, saver: Saver[State]) extends Acto
   implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
   private val chatData = saver.load()
-  private var chatDataLastTime: Date = DateUtils.now
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState(needConfirmation = false))

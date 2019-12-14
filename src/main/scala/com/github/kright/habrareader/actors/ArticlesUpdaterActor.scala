@@ -49,7 +49,7 @@ class ArticlesUpdaterActor private(config: ArticlesUpdaterConfig, library: Actor
         default
     }
 
-  private def logException(text: String, printTrace: Throwable => Boolean = _ => true): Throwable => Unit =
+  private def logException(text: String, printTrace: Throwable => Boolean): Throwable => Unit =
     ex => log.error(s"$text $ex ${if (printTrace(ex)) ex.getStackTrace.mkString("\n") else ""}")
 
   private def isInterestingException: Throwable => Boolean = {

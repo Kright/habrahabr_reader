@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import com.bot4s.telegram.methods.{EditMessageText, ParseMode, SendMessage}
-import com.bot4s.telegram.models.Message
+import com.bot4s.telegram.models.{ChatId, Message}
 import com.github.kright.habrareader.AppConfig.TgBotActorConfig
 import com.github.kright.habrareader.actors.LibraryActor._
 import com.github.kright.habrareader.models.{HabrArticle, SentArticle}
@@ -151,7 +151,7 @@ class TgBotActor private(config: TgBotActorConfig, library: ActorRef) extends Ac
       case UpdateArticle(chatId, article, None) =>
         bot.request(SendMessage(chatId, formMessage(article), parseMode = Some(ParseMode.HTML))).map(_.messageId)
       case UpdateArticle(chatId, article, Some(messageId)) =>
-        bot.request(EditMessageText(Option(chatId), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML))).map(_ => messageId)
+        bot.request(EditMessageText(Option(ChatId(chatId)), Option(messageId), text = formMessage(article), parseMode = Some(ParseMode.HTML))).map(_ => messageId)
     }).onComplete {
       case Success(sentMessageId) =>
         log.info(s"$update")
