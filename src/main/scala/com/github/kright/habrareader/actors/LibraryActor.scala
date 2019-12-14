@@ -17,14 +17,15 @@ object LibraryActor {
 
   final case class PostWasSentToTg(chatId: Long, sentArticle: SentArticle)
   final case class GetSettings(chatId: Long)
-  final case class UpdateChat(chatId: Long, updater: Chat => Chat, isSilent: Boolean = false)
+  final case class UpdateChat(chatId: Long, updater: Chat => Chat, needConfirmation: Boolean)
   final case class RequestUpdates(chatId: Long)
   final case class RequestUpdatesForAll(updateExistingMessages: Boolean)
   final case class UpdateArticle(article: HabrArticle)
-  final case class SaveState(chatId: Option[Long] = None)
+  final case class SaveState(needConfirmation: Boolean)
   final case class GetStats(chatId: Long)
   final case object GetArticles
   final case class AllArticles(articles: Iterable[HabrArticle])
+  final case object Ok
 }
 
 class LibraryActor(config: LibraryActorConfig, saver: Saver[State]) extends Actor with ActorLogging {
@@ -34,14 +35,14 @@ class LibraryActor(config: LibraryActorConfig, saver: Saver[State]) extends Acto
   private var chatDataLastTime: Date = DateUtils.now
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState())
+    context.system.scheduler.schedule(config.stateSaveInterval, config.stateSaveInterval, self, SaveState(needConfirmation = false))
   }
 
   override def receive: Receive = {
-    case UpdateChat(chatId, updater, isSilent) =>
+    case UpdateChat(chatId, updater, needConfirmation) =>
       chatData.updateChat(chatId)(updater)
-      if (!isSilent) {
-        sender ! SendMessageToTg(chatId, "ok")
+      if (needConfirmation) {
+        sender ! Ok
       }
     case GetSettings(chatId) =>
       sender ! SendMessageToTg(chatId, chatData.getChat(chatId).getSettingsAsCmd)
@@ -51,11 +52,11 @@ class LibraryActor(config: LibraryActorConfig, saver: Saver[State]) extends Acto
       chatData.updateArticle(article)
     case PostWasSentToTg(chatId, sentArticle) =>
       chatData.addSentArticle(chatId, sentArticle)
-    case SaveState(chatIdOption) =>
+    case SaveState(needConfirmation) =>
       rmOldArticles()
       saver.save(chatData)
-      chatIdOption.foreach { chatId =>
-        sender ! SendMessageToTg(chatId, "saved!")
+      if (needConfirmation) {
+        sender ! Ok
       }
     case RequestUpdates(chatId) =>
       requestUpdates(chatId, sender)
