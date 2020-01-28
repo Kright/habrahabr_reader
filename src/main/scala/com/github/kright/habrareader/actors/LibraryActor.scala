@@ -86,15 +86,19 @@ class LibraryActor(config: LibraryActorConfig, saver: Saver[State]) extends Acto
        |subscribed users: <b>${chatData.chats.values.count(_.filterSettings.updateAsSoonAsPossible)}</b>
       """.stripMargin
 
-  private def processNewPostSending(tgBot: ActorRef, updateExistingMessages: Boolean): Unit =
+  private def processNewPostSending(tgBot: ActorRef, updateExistingMessages: Boolean): Unit = {
     for ((id, chat) <- chatData.chats) {
       if (chat.filterSettings.updateAsSoonAsPossible) {
         chatData.getNewArticles(id).foreach(tgBot ! _)
       }
+    }
+    // at first send all new articles
+    for((id, chat) <- chatData.chats) {
       if (chat.filterSettings.updateAsSoonAsPossible && updateExistingMessages) {
         chatData.getSentArticleUpdates(id).foreach(tgBot ! _)
       }
     }
+  }
 
   private def requestUpdates(chatId: Long, tgBot: ActorRef): Unit = {
     val updates = chatData.getNewArticles(chatId)
